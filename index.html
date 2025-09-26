@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width,initial-scale=1" />
-<title>Random Music Studio v6.5 — by Party Marty</title>
+<title>Random Music Studio v6.8 — Party Marty</title>
 <style>
   :root{ --bg:#0a0f14; --panel:#111827; --ink:#e6edf3; --muted:#9fb0c3; --accent:#7dd3fc; --accent2:#a78bfa; --good:#86efac; --warn:#fbbf24 }
   *{box-sizing:border-box}
@@ -58,7 +58,7 @@
 </head>
 <body>
 <header>
-  <h1>🎹 Random Music Studio v6.5 • Party Marty</h1>
+  <h1>🎹 Random Music Studio v6.8 • Party Marty</h1>
 </header>
 <main>
   <section class="panel controls">
@@ -159,6 +159,8 @@
       </div>
       <div class="row">
         <label>Vol</label><input id="leadVol" type="range" min="0" max="1.5" step="0.01" value="0.9"/><span id="leadVolVal" class="pill">0.90</span>
+      </div>
+      <div class="row">
         <label>Voicing</label>
         <select id="voicing"><option value="uni">Unison</option><option value="oct">Octaves</option><option value="thr">Thirds</option><option value="triad" selected>Triad</option><option value="fif">Fifths</option><option value="six">Sixths</option></select>
       </div>
@@ -320,6 +322,22 @@
 (function(){
   const noteNames=["C","C#","D","D#","E","F","F#","G","G#","A","A#","B"];
   const scales={ major:[0,2,4,5,7,9,11], minor:[0,2,3,5,7,8,10], pent_major:[0,2,4,7,9], pent_minor:[0,3,5,7,10], dorian:[0,2,3,5,7,9,10], mixolydian:[0,2,4,5,7,9,10] };
+
+  // NEW: Per-instrument loudness trims (1.00 = no change)
+  const INST_TRIM = {
+    supersaw: 0.38,     // 6 oscs summed — tame significantly
+    organLead: 0.65,    // 2 squares
+    square: 0.85,
+    sawtooth: 0.90,
+    fm: 0.90,
+    pluck: 0.85,
+    bell: 0.75,
+    piano: 0.80,
+    noise: 0.55,
+    sine: 1.00,
+    triangle: 1.00
+  };
+
   function midiToFreq(m){return 440*Math.pow(2,(m-69)/12)}
   function clamp(v,min,max){return Math.min(max,Math.max(min,v))}
   function pick(a,rng=Math.random){return a[Math.floor(rng()*a.length)]}
@@ -396,14 +414,58 @@
   function envGain(target,t,dur,a=0.004,d=0.06,s=0.35,vel=1){ const peak=0.9*vel; target.cancelScheduledValues(t); target.setValueAtTime(0.0001,t); target.linearRampToValueAtTime(peak,t+a); target.linearRampToValueAtTime(peak*s,t+a+d); target.linearRampToValueAtTime(0.0001,t+dur); }
   function humanize(t,baseGain){ const ms=parseFloat(humMs.value), vel=parseFloat(humVel.value); return { t: t + ((rng()*2-1)*(ms/1000)), g: clamp(baseGain + (rng()*2-1)*vel, 0.0001, 2.0) } }
 
-  function playLeadFreq(freq, time, gate){ const {t,g}=humanize(time, parseFloat(leadVol.value)); const type=leadInst.value; const out=voiceOut(); envGain(out.gain,t,gate,0.003,0.05,0.4,g);
-    if(type==='noise'){ const src=ctx.createBufferSource(); const b=ctx.createBuffer(1,ctx.sampleRate*gate,ctx.sampleRate); const d=b.getChannelData(0); for(let i=0;i<d.length;i++) d[i]=rng()*2-1; src.buffer=b; const bp=new BiquadFilterNode(ctx,{type:'bandpass',frequency:freq,Q:6}); src.connect(bp).connect(out); src.start(t); src.stop(t+gate+0.1); return; }
-    if(type==='supersaw'){ const mix=new GainNode(ctx,{gain:1}); mix.connect(out); const det=[-12,-7,-3,3,7,12]; det.forEach(c=>{ const o=new OscillatorNode(ctx,{type:'sawtooth',frequency:freq}); o.detune.value=c; o.connect(mix); o.start(t); o.stop(t+gate+0.1); }); return; }
-    if(type==='pluck'){ const s=new OscillatorNode(ctx,{type:'sine',frequency:freq}); const n=ctx.createBufferSource(); const b=ctx.createBuffer(1,ctx.sampleRate*Math.min(0.2,gate),ctx.sampleRate); const d=b.getChannelData(0); for(let i=0;i<d.length;i++) d[i]=rng()*2-1; n.buffer=b; const bp=new BiquadFilterNode(ctx,{type:'bandpass',frequency:freq*2,Q:10}); s.connect(out); n.connect(bp).connect(out); s.start(t); n.start(t); s.stop(t+gate+0.1); n.stop(t+Math.min(0.2,gate)); return; }
-    if(type==='fm'){ const car=new OscillatorNode(ctx,{type:'sine',frequency:freq}); const mod=new OscillatorNode(ctx,{type:'sine',frequency:freq*2.2}); const mg=new GainNode(ctx,{gain:120}); mod.connect(mg).connect(car.frequency); car.connect(out); car.start(t); mod.start(t); car.stop(t+gate+0.1); mod.stop(t+gate+0.1); return; }
-    if(type==='piano'){ const body=new OscillatorNode(ctx,{type:'triangle',frequency:freq}); const harm=new OscillatorNode(ctx,{type:'sawtooth',frequency:freq*2}); harm.detune.value=3; const noise=ctx.createBufferSource(); const nb=ctx.createBuffer(1,ctx.sampleRate*0.02,ctx.sampleRate); const nd=nb.getChannelData(0); for(let i=0;i<nd.length;i++) nd[i]=rng()*2-1; noise.buffer=nb; const hp=new BiquadFilterNode(ctx,{type:'highpass',frequency:1200}); const lp=new BiquadFilterNode(ctx,{type:'lowpass',frequency:2200,Q:0.4}); body.connect(lp).connect(out); harm.connect(lp); noise.connect(hp).connect(out); body.start(t); harm.start(t); noise.start(t); body.stop(t+gate+0.2); harm.stop(t+0.12); noise.stop(t+0.03); return; }
-    if(type==='bell'){ const car=new OscillatorNode(ctx,{type:'sine',frequency:freq}); const mod=new OscillatorNode(ctx,{type:'sine',frequency:freq*2.7}); const mg=new GainNode(ctx,{gain:260}); mod.connect(mg).connect(car.frequency); const lp=new BiquadFilterNode(ctx,{type:'lowpass',frequency:5000}); car.connect(lp).connect(out); car.start(t); mod.start(t); car.stop(t+gate+0.8); mod.stop(t+gate+0.8); return; }
-    if(type==='organLead'){ const o=new OscillatorNode(ctx,{type:'square',frequency:freq}); const o2=new OscillatorNode(ctx,{type:'square',frequency:freq}); o2.detune.value=6; o.connect(out); o2.connect(out); o.start(t); o2.start(t); o.stop(t+gate+0.2); o2.stop(t+gate+0.2); return; }
+  // PATCHED: use per-instrument trim in gain calc; power-normalize supersaw mix
+  function playLeadFreq(freq, time, gate){
+    const type=leadInst.value;
+    const trim = INST_TRIM[type] ?? 1.0;
+    const {t,g}=humanize(time, parseFloat(leadVol.value) * trim);
+    const out=voiceOut();
+    envGain(out.gain,t,gate,0.003,0.05,0.4,g);
+
+    if(type==='noise'){
+      const src=ctx.createBufferSource();
+      const b=ctx.createBuffer(1,ctx.sampleRate*gate,ctx.sampleRate);
+      const d=b.getChannelData(0); for(let i=0;i<d.length;i++) d[i]=rng()*2-1;
+      src.buffer=b; const bp=new BiquadFilterNode(ctx,{type:'bandpass',frequency:freq,Q:6});
+      src.connect(bp).connect(out); src.start(t); src.stop(t+gate+0.1); return;
+    }
+    if(type==='supersaw'){
+      const det=[-12,-7,-3,3,7,12];
+      const mix=new GainNode(ctx,{gain:1/Math.sqrt(det.length)}); // power preservation
+      mix.connect(out);
+      det.forEach(c=>{ const o=new OscillatorNode(ctx,{type:'sawtooth',frequency:freq}); o.detune.value=c; o.connect(mix); o.start(t); o.stop(t+gate+0.1); });
+      return;
+    }
+    if(type==='pluck'){
+      const s=new OscillatorNode(ctx,{type:'sine',frequency:freq});
+      const n=ctx.createBufferSource(); const b=ctx.createBuffer(1,ctx.sampleRate*Math.min(0.2,gate),ctx.sampleRate); const d=b.getChannelData(0); for(let i=0;i<d.length;i++) d[i]=rng()*2-1; n.buffer=b;
+      const bp=new BiquadFilterNode(ctx,{type:'bandpass',frequency:freq*2,Q:10}); s.connect(out); n.connect(bp).connect(out);
+      s.start(t); n.start(t); s.stop(t+gate+0.1); n.stop(t+Math.min(0.2,gate)); return;
+    }
+    if(type==='fm'){
+      const car=new OscillatorNode(ctx,{type:'sine',frequency:freq}); const mod=new OscillatorNode(ctx,{type:'sine',frequency:freq*2.2});
+      const mg=new GainNode(ctx,{gain:120}); mod.connect(mg).connect(car.frequency);
+      car.connect(out); car.start(t); mod.start(t); car.stop(t+gate+0.1); mod.stop(t+gate+0.1); return;
+    }
+    if(type==='piano'){
+      const body=new OscillatorNode(ctx,{type:'triangle',frequency:freq}); const harm=new OscillatorNode(ctx,{type:'sawtooth',frequency:freq*2}); harm.detune.value=3;
+      const noise=ctx.createBufferSource(); const nb=ctx.createBuffer(1,ctx.sampleRate*0.02,ctx.sampleRate); const nd=nb.getChannelData(0); for(let i=0;i<nd.length;i++) nd[i]=rng()*2-1; noise.buffer=nb;
+      const hp=new BiquadFilterNode(ctx,{type:'highpass',frequency:1200}); const lp=new BiquadFilterNode(ctx,{type:'lowpass',frequency:2200,Q:0.4});
+      body.connect(lp).connect(out); harm.connect(lp); noise.connect(hp).connect(out);
+      body.start(t); harm.start(t); noise.start(t); body.stop(t+gate+0.2); harm.stop(t+0.12); noise.stop(t+0.03); return;
+    }
+    if(type==='bell'){
+      const car=new OscillatorNode(ctx,{type:'sine',frequency:freq}); const mod=new OscillatorNode(ctx,{type:'sine',frequency:freq*2.7}); const mg=new GainNode(ctx,{gain:260});
+      mod.connect(mg).connect(car.frequency); const lp=new BiquadFilterNode(ctx,{type:'lowpass',frequency:5000});
+      car.connect(lp).connect(out); car.start(t); mod.start(t); car.stop(t+gate+0.8); mod.stop(t+gate+0.8); return;
+    }
+    if(type==='organLead'){
+      const o=new OscillatorNode(ctx,{type:'square',frequency:freq});
+      const o2=new OscillatorNode(ctx,{type:'square',frequency:freq}); o2.detune.value=6;
+      const mix=new GainNode(ctx,{gain:1/Math.sqrt(2)}); // 2 oscillators — normalize power
+      o.connect(mix); o2.connect(mix); mix.connect(out);
+      o.start(t); o2.start(t); o.stop(t+gate+0.2); o2.stop(t+gate+0.2); return;
+    }
     const o=new OscillatorNode(ctx,{type:type,frequency:freq}); o.connect(out); o.start(t); o.stop(t+gate+0.1);
   }
   function voicingOffsets(){ const v=voicingSel.value; if(v==='uni')return [0]; if(v==='oct')return [0,12]; if(v==='thr')return [0,4]; if(v==='fif')return [0,7]; if(v==='six')return [0,9]; if(v==='triad')return [0,4,7]; return [0]; }
@@ -464,6 +526,7 @@
   function encodeWAVFromBuffers(bufsL, bufsR, sampleRate){ const left=mergeFloat32(bufsL), right=mergeFloat32(bufsR); const inter = interleave(left,right); const pcm = floatTo16PCM(inter); const wavHeader = new DataView(new ArrayBuffer(44)); const numChannels=2; const bytesPerSample=2; const blockAlign=numChannels*bytesPerSample; const byteRate=sampleRate*blockAlign; const dataSize=pcm.byteLength; writeString(wavHeader,0,'RIFF'); wavHeader.setUint32(4, 36 + dataSize, true); writeString(wavHeader,8,'WAVE'); writeString(wavHeader,12,'fmt '); wavHeader.setUint32(16,16,true); wavHeader.setUint16(20,1,true); wavHeader.setUint16(22,numChannels,true); wavHeader.setUint32(24,sampleRate,true); wavHeader.setUint32(28,byteRate,true); wavHeader.setUint16(32,blockAlign,true); wavHeader.setUint16(34,bytesPerSample*8,true); writeString(wavHeader,36,'data'); wavHeader.setUint32(40,dataSize,true); const wavBuffer = new Uint8Array(44 + dataSize); wavBuffer.set(new Uint8Array(wavHeader.buffer),0); wavBuffer.set(new Uint8Array(pcm.buffer),44); return new Blob([wavBuffer],{type:'audio/wav'}); }
   function writeString(dv,offset,str){ for(let i=0;i<str.length;i++){ dv.setUint8(offset+i, str.charCodeAt(i)); } }
 
+  // UI bindings & live updates
   bpm.oninput=()=>{bpmVal.textContent=bpm.value}; swing.oninput=()=>{swingVal.textContent=swing.value}; humMs.oninput=()=>{humMsVal.textContent=humMs.value}; humVel.oninput=()=>{humVelVal.textContent=parseFloat(humVel.value).toFixed(2)};
   master.oninput=()=>{ if(masterG) masterG.gain.value=parseFloat(master.value); masterVal.textContent=parseFloat(master.value).toFixed(2)};
   dlyMix.oninput=()=>{ if(dlyGain) dlyGain.gain.value=parseFloat(dlyMix.value); dlyMixVal.textContent=parseFloat(dlyMix.value).toFixed(2)};
@@ -492,11 +555,11 @@
   rndAll.onclick=()=>{ rootSel.value=Math.floor(rng()*12); scaleSel.value=pick(Object.keys(scales),rng); leadInst.value=pick(['sawtooth','sine','square','triangle','supersaw','pluck','fm','noise','piano','bell','organLead'],rng); octNum.value = String(3 + Math.floor(rng()*3)); bpm.value=90+Math.floor(rng()*80); bpmVal.textContent=bpm.value; randomDrums(); randomMel(); randomBass(); };
 
   applySeedBtn.onclick=()=>{ applySeedStr(seed.value.trim()); };
-  saveBtn.onclick=()=>{ const state=collectState(); const blob=new Blob([JSON.stringify(state,null,2)],{type:'application/json'}); const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download='random_music_studio_v6_5.json'; a.click(); };
+  saveBtn.onclick=()=>{ const state=collectState(); const blob=new Blob([JSON.stringify(state,null,2)],{type:'application/json'}); const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download='random_music_studio_v6_8.json'; a.click(); };
   loadBtn.onclick=()=>loadFile.click();
   loadFile.onchange=async(e)=>{ const f=e.target.files[0]; if(!f) return; const txt=await f.text(); const obj=JSON.parse(txt); restoreState(obj); };
-  saveLocal.onclick=()=>{ localStorage.setItem('random_studio_v6_5', JSON.stringify(collectState())); };
-  loadLocal.onclick=()=>{ const txt=localStorage.getItem('random_studio_v6_5'); if(txt){ restoreState(JSON.parse(txt)); } };
+  saveLocal.onclick=()=>{ localStorage.setItem('random_studio_v6_8', JSON.stringify(collectState())); };
+  loadLocal.onclick=()=>{ const txt=localStorage.getItem('random_studio_v6_8'); if(txt){ restoreState(JSON.parse(txt)); } };
 
   function collectState(){ return {
     bpm:bpm.value,swing:swing.value,humMs:humMs.value,humVel:humVel.value,master:master.value,
@@ -517,7 +580,7 @@
     if(s.pads){ padOn.checked=s.pads.on; padInst.value=s.pads.inst; padVoicing.value=s.pads.voice; padLen.value=s.pads.len; padVol.value=s.pads.vol; padVol.oninput(); padProg.value=s.pads.prog||padProg.value; }
     if(s.bass){ bassOn.checked=s.bass.on; bassInst.value=s.bass.inst; bassOct.value=String(s.bass.oct); bassDen.value=s.bass.den; bassDen.oninput(); bassVol.value=s.bass.vol; bassVol.oninput(); if(s.bass.seq) bass=s.bass.seq.slice(); }
     if(s.auto){ autoOn.checked=s.auto.on; autoMeasures.value=s.auto.measures; autoMel.checked=s.auto.mel; autoDrums.checked=s.auto.dr; autoBass.checked=s.auto.bass; autoChords.checked=s.auto.ch; autoKit.checked=s.auto.kit; autoInst.checked=s.auto.inst; autoKeyScale.checked=!!s.auto.key; updateAutoStatus(); }
-    if(s.seed!==undefined){ seed.value=s.seed; applySeedStr(seed.value.trim()); }
+    if(s.seed!==undefined){ seed.value=s.seed; applySeedStr(s.seed.trim()); }
     renderGrids(); }
 
   const leadChoices=['sawtooth','sine','square','triangle','supersaw','pluck','fm','noise','piano','bell','organLead'];
