@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width,initial-scale=1" />
-<title>Random Music Studio v6.8 — Party Marty</title>
+<title>Random Music Studio v6.9 — Party Marty</title>
 <style>
   :root{ --bg:#0a0f14; --panel:#111827; --ink:#e6edf3; --muted:#9fb0c3; --accent:#7dd3fc; --accent2:#a78bfa; --good:#86efac; --warn:#fbbf24 }
   *{box-sizing:border-box}
@@ -58,7 +58,7 @@
 </head>
 <body>
 <header>
-  <h1>🎹 Random Music Studio v6.8 • Party Marty</h1>
+  <h1>🎹 Random Music Studio v6.9 • Party Marty</h1>
 </header>
 <main>
   <section class="panel controls">
@@ -99,7 +99,13 @@
         <label class="mutetext"><input id="autoChords" type="checkbox"/> Chords</label>
         <label class="mutetext"><input id="autoKit" type="checkbox"/> Drum types</label>
         <label class="mutetext"><input id="autoInst" type="checkbox"/> Lead instrument</label>
+        <label class="mutetext"><input id="autoVoicing" type="checkbox"/> Voicing</label>
         <label class="mutetext"><input id="autoKeyScale" type="checkbox"/> Key/Scale</label>
+      </div>
+      <div class="row">
+        <label class="mutetext"><input id="autoTempo" type="checkbox"/> Tempo</label>
+        <label>Δ BPM ±</label><input id="autoTempoDelta" type="range" min="2" max="30" step="1" value="8"/>
+        <span id="autoTempoDeltaVal" class="pill">±8</span>
         <button id="nextInst">🎛️ Switch Instrument</button>
         <span class="pill small" id="autoStatus">Off</span>
       </div>
@@ -153,6 +159,9 @@
 
     <fieldset>
       <legend>Lead Synth</legend>
+      <div class="row">
+        <label>Enable</label><input id="leadOn" type="checkbox" checked/>
+      </div>
       <div class="row">
         <label>Instrument</label>
         <select id="leadInst"><option value="sawtooth" selected>Saw</option><option value="sine">Sine</option><option value="square">Square</option><option value="triangle">Triangle</option><option value="supersaw">SuperSaw</option><option value="pluck">Pluck</option><option value="fm">FM</option><option value="noise">Noise</option><option value="piano">Piano</option><option value="bell">Bell</option><option value="organLead">Organ</option></select>
@@ -323,20 +332,8 @@
   const noteNames=["C","C#","D","D#","E","F","F#","G","G#","A","A#","B"];
   const scales={ major:[0,2,4,5,7,9,11], minor:[0,2,3,5,7,8,10], pent_major:[0,2,4,7,9], pent_minor:[0,3,5,7,10], dorian:[0,2,3,5,7,9,10], mixolydian:[0,2,4,5,7,9,10] };
 
-  // NEW: Per-instrument loudness trims (1.00 = no change)
-  const INST_TRIM = {
-    supersaw: 0.38,     // 6 oscs summed — tame significantly
-    organLead: 0.65,    // 2 squares
-    square: 0.85,
-    sawtooth: 0.90,
-    fm: 0.90,
-    pluck: 0.85,
-    bell: 0.75,
-    piano: 0.80,
-    noise: 0.55,
-    sine: 1.00,
-    triangle: 1.00
-  };
+  // Per-instrument loudness trims (1.00 = no change) from v6.8
+  const INST_TRIM = { supersaw:0.38, organLead:0.65, square:0.85, sawtooth:0.90, fm:0.90, pluck:0.85, bell:0.75, piano:0.80, noise:0.55, sine:1.00, triangle:1.00 };
 
   function midiToFreq(m){return 440*Math.pow(2,(m-69)/12)}
   function clamp(v,min,max){return Math.min(max,Math.max(min,v))}
@@ -349,6 +346,7 @@
   const bpm=$('bpm'), swing=$('swing'), humMs=$('humMs'), humVel=$('humVel');
   const bpmVal=$('bpmVal'), swingVal=$('swingVal'), humMsVal=$('humMsVal'), humVelVal=$('humVelVal');
   const rootSel=$('root'), scaleSel=$('scale'), octNum=$('oct');
+  const leadOn=$('leadOn');
   const leadInst=$('leadInst'), leadVol=$('leadVol'), leadVolVal=$('leadVolVal'), voicingSel=$('voicing');
   const dlyMix=$('dlyMix'), dlyMixVal=$('dlyMixVal'), revMix=$('revMix'), revMixVal=$('revMixVal'), choMix=$('choMix'), choMixVal=$('choMixVal');
   const phMix=$('phMix'), phMixVal=$('phMixVal'), leadGate=$('leadGate'), leadGateVal=$('leadGateVal');
@@ -360,7 +358,11 @@
   const beatLED=$('beatLED');
   const recBtn=$('recBtn'), dl=$('dl'), recFmt=$('recFmt');
   const overdub=$('overdub'), kbOct=$('kbOct');
-  const autoOn=$('autoOn'), autoMeasures=$('autoMeasures'), autoMel=$('autoMel'), autoDrums=$('autoDrums'), autoBass=$('autoBass'), autoChords=$('autoChords'), autoKit=$('autoKit'), autoInst=$('autoInst'), autoKeyScale=$('autoKeyScale'), nextInst=$('nextInst'), autoStatus=$('autoStatus');
+  const autoOn=$('autoOn'), autoMeasures=$('autoMeasures');
+  const autoMel=$('autoMel'), autoDrums=$('autoDrums'), autoBass=$('autoBass'), autoChords=$('autoChords'), autoKit=$('autoKit'), autoInst=$('autoInst'), autoKeyScale=$('autoKeyScale');
+  const autoTempo=$('autoTempo'), autoTempoDelta=$('autoTempoDelta'), autoTempoDeltaVal=$('autoTempoDeltaVal');
+  const autoVoicing=$('autoVoicing');
+  const nextInst=$('nextInst'), autoStatus=$('autoStatus');
   const seed=$('seed'), applySeedBtn=$('applySeed'), saveBtn=$('saveBtn'), loadBtn=$('loadBtn'), loadFile=$('loadFile'), saveLocal=$('saveLocal'), loadLocal=$('loadLocal');
   const grids={ kick: $('grid-kick'), snr: $('grid-snr'), hat: $('grid-hat'), prc: $('grid-prc'), mel: $('grid-mel') };
   const drumCtrl={ kick:{type:$('kickType'), vol:$('kickVol'), dly:$('kickDly'), rev:$('kickRev')}, snr:{type:$('snrType'), vol:$('snrVol'), dly:$('snrDly'), rev:$('snrRev')}, hat:{type:$('hatType'), vol:$('hatVol'), dly:$('hatDly'), rev:$('hatRev')}, prc:{type:$('prcType'), vol:$('prcVol'), dly:$('prcDly'), rev:$('prcRev')}, };
@@ -414,7 +416,7 @@
   function envGain(target,t,dur,a=0.004,d=0.06,s=0.35,vel=1){ const peak=0.9*vel; target.cancelScheduledValues(t); target.setValueAtTime(0.0001,t); target.linearRampToValueAtTime(peak,t+a); target.linearRampToValueAtTime(peak*s,t+a+d); target.linearRampToValueAtTime(0.0001,t+dur); }
   function humanize(t,baseGain){ const ms=parseFloat(humMs.value), vel=parseFloat(humVel.value); return { t: t + ((rng()*2-1)*(ms/1000)), g: clamp(baseGain + (rng()*2-1)*vel, 0.0001, 2.0) } }
 
-  // PATCHED: use per-instrument trim in gain calc; power-normalize supersaw mix
+  // Lead voices (normalized like v6.8)
   function playLeadFreq(freq, time, gate){
     const type=leadInst.value;
     const trim = INST_TRIM[type] ?? 1.0;
@@ -491,7 +493,7 @@
 
   function schedule(){ const secPerBeat=60/parseFloat(bpm.value); const sw=parseFloat(swing.value); while(nextNoteTime < ctx.currentTime + 0.2){ const stepInBeat=current16%4; const swingOffset=((current16%2)===1)? sw*secPerBeat*0.25 : 0; const t=nextNoteTime + swingOffset; 
       if(drums.kick[current16]) drumKick(t); if(drums.snr[current16]) drumSnare(t); if(drums.hat[current16]) drumHat(t); if(drums.prc[current16]) drumPerc(t);
-      const gateLead=parseFloat(leadGate.value)*secPerBeat; const base=melody[current16]; if(base!==null){ playVoiced(base, t, gateLead); } const extras=extra[current16]; if(extras && extras.length){ extras.forEach(m=> playVoiced(m, t, gateLead)); }
+      const gateLead=parseFloat(leadGate.value)*secPerBeat; const base=melody[current16]; if(leadOn.checked && base!==null){ playVoiced(base, t, gateLead); } const extras=extra[current16]; if(leadOn.checked && extras && extras.length){ extras.forEach(m=> playVoiced(m, t, gateLead)); }
       if(bassOn.checked){ const bnote=bass[current16]; if(bnote!==null){ playBass(bnote, t, gateLead*0.9); } }
       if(padOn.checked){ const lenBeats=parseInt(padLen.value); if(current16===0){ const chord=padChordForBar(measureCount); playPadChord(chord, t, secPerBeat); } if(lenBeats===8 && current16===0 && (measureCount%2===1)){ const chord2=padChordForBar(measureCount); playPadChord(chord2, t, secPerBeat); } }
       if(stepInBeat===0){ beatLED.classList.add('on'); setTimeout(()=>beatLED.classList.remove('on'), 60); }
@@ -508,7 +510,9 @@
   function randomizeDrumTypes(){ const pickSel=(sel)=>{ const opts=[...sel.options]; sel.value=opts[Math.floor(rng()*opts.length)].value; }; pickSel(drumCtrl.kick.type); pickSel(drumCtrl.snr.type); pickSel(drumCtrl.hat.type); pickSel(drumCtrl.prc.type); }
   function randomizeChords(){ if(padProg.value==='random'){ return; } const keys=Object.keys(progressions); padProg.value=pick(keys,rng); }
   function randomizeKeyScale(){ rootSel.value=Math.floor(rng()*12); const keys=Object.keys(scales); scaleSel.value=pick(keys,rng); }
-  function doAutoChange(){ if(autoKeyScale && autoKeyScale.checked) randomizeKeyScale(); if(autoMel && autoMel.checked) randomMel(); if(autoDrums && autoDrums.checked) randomDrums(); if(autoBass && autoBass.checked) randomBass(); if(autoChords && autoChords.checked) randomizeChords(); if(autoKit && autoKit.checked) randomizeDrumTypes(); if(autoInst && autoInst.checked) switchInstrument('random'); renderGrids(); }
+  function randomizeVoicing(){ const opts=[...voicingSel.options].map(o=>o.value); let next=pick(opts,rng); if(next===voicingSel.value && opts.length>1){ next=opts[(opts.indexOf(next)+1)%opts.length]; } voicingSel.value=next; }
+  function randomizeTempo(){ const delta=parseInt(autoTempoDelta.value)||8; const cur=parseInt(bpm.value); const low=clamp(cur-delta,40,200); const high=clamp(cur+delta,40,200); let next=Math.floor(low + rng()*(high-low+1)); if(next===cur){ next = clamp(cur + (rng()<0.5?-1:1)*Math.ceil(delta/2), 40, 200); } bpm.value=String(next); bpmVal.textContent=bpm.value; }
+  function doAutoChange(){ if(autoKeyScale && autoKeyScale.checked) randomizeKeyScale(); if(autoMel && autoMel.checked) randomMel(); if(autoDrums && autoDrums.checked) randomDrums(); if(autoBass && autoBass.checked) randomBass(); if(autoChords && autoChords.checked) randomizeChords(); if(autoKit && autoKit.checked) randomizeDrumTypes(); if(autoInst && autoInst.checked) switchInstrument('random'); if(autoVoicing && autoVoicing.checked) randomizeVoicing(); if(autoTempo && autoTempo.checked) randomizeTempo(); renderGrids(); }
   function updateAutoStatus(){ if(!autoStatus) return; if(!autoOn || !autoOn.checked){ autoStatus.textContent='Off'; return; } const interval=parseInt(autoMeasures.value)||4; const left = interval - (measureCount % interval || interval); autoStatus.textContent = `Next in ${left} bar${left>1?'s':''}`; }
 
   function renderGrids(){ Object.entries(grids).forEach(([k,el])=>{ el.innerHTML=''; for(let i=0;i<steps;i++){ const c=document.createElement('div'); c.className='cell'+((k==='mel'?(melody[i]!==null):(drums[k][i]))?' on':''); c.title=`${k.toUpperCase()} Step ${i+1}`; c.addEventListener('click',()=>{ if(k==='mel'){ melody[i] = (melody[i]===null)? buildScale()[0] : null; } else { drums[k][i]=!drums[k][i]; } c.classList.toggle('on'); }); el.appendChild(c); } }); }
@@ -538,6 +542,7 @@
   melDen.oninput=()=>{ melDenVal.textContent=parseFloat(melDen.value).toFixed(2)}; melRange.oninput=()=>{ melRangeVal.textContent=melRange.value};
   padVol.oninput=()=>{ padVolVal.textContent=parseFloat(padVol.value).toFixed(2)};
   bassVol.oninput=()=>{ bassVolVal.textContent=parseFloat(bassVol.value).toFixed(2)}; bassDen.oninput=()=>{ bassDenVal.textContent=parseFloat(bassDen.value).toFixed(2)};
+  autoTempoDelta.oninput=()=>{ autoTempoDeltaVal.textContent='±'+autoTempoDelta.value };
 
   $('drmRnd').onclick=()=>randomDrums(); $('drmClr').onclick=()=>{ Object.values(drums).forEach(r=>r.fill(false)); renderGrids(); };
   $('melRnd').onclick=()=>{ randomMel(); renderGrids(); }; $('melClr').onclick=()=>{ melody.fill(null); extra.forEach(a=>a.length=0); renderGrids(); };
@@ -555,31 +560,31 @@
   rndAll.onclick=()=>{ rootSel.value=Math.floor(rng()*12); scaleSel.value=pick(Object.keys(scales),rng); leadInst.value=pick(['sawtooth','sine','square','triangle','supersaw','pluck','fm','noise','piano','bell','organLead'],rng); octNum.value = String(3 + Math.floor(rng()*3)); bpm.value=90+Math.floor(rng()*80); bpmVal.textContent=bpm.value; randomDrums(); randomMel(); randomBass(); };
 
   applySeedBtn.onclick=()=>{ applySeedStr(seed.value.trim()); };
-  saveBtn.onclick=()=>{ const state=collectState(); const blob=new Blob([JSON.stringify(state,null,2)],{type:'application/json'}); const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download='random_music_studio_v6_8.json'; a.click(); };
+  saveBtn.onclick=()=>{ const state=collectState(); const blob=new Blob([JSON.stringify(state,null,2)],{type:'application/json'}); const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download='random_music_studio_v6_9.json'; a.click(); };
   loadBtn.onclick=()=>loadFile.click();
   loadFile.onchange=async(e)=>{ const f=e.target.files[0]; if(!f) return; const txt=await f.text(); const obj=JSON.parse(txt); restoreState(obj); };
-  saveLocal.onclick=()=>{ localStorage.setItem('random_studio_v6_8', JSON.stringify(collectState())); };
-  loadLocal.onclick=()=>{ const txt=localStorage.getItem('random_studio_v6_8'); if(txt){ restoreState(JSON.parse(txt)); } };
+  saveLocal.onclick=()=>{ localStorage.setItem('random_studio_v6_9', JSON.stringify(collectState())); };
+  loadLocal.onclick=()=>{ const txt=localStorage.getItem('random_studio_v6_9'); if(txt){ restoreState(JSON.parse(txt)); } };
 
   function collectState(){ return {
     bpm:bpm.value,swing:swing.value,humMs:humMs.value,humVel:humVel.value,master:master.value,
     key:{root:rootSel.value,scale:scaleSel.value,oct:octNum.value},
-    lead:{inst:leadInst.value,vol:leadVol.value,voicing:voicingSel.value,gate:leadGate.value,fx:{dly:dlyMix.value,rev:revMix.value,cho:choMix.value,ph:phMix.value}},
+    lead:{on:leadOn.checked,inst:leadInst.value,vol:leadVol.value,voicing:voicingSel.value,gate:leadGate.value,fx:{dly:dlyMix.value,rev:revMix.value,cho:choMix.value,ph:phMix.value}},
     drums:{types:{kick:drumCtrl.kick.type.value,snr:drumCtrl.snr.type.value,hat:drumCtrl.hat.type.value,prc:drumCtrl.prc.type.value}, grids:drums},
     melody:{base:melody,extra:extra,den:melDen.value,range:melRange.value,repeat:repeatOn},
     pads:{on:padOn.checked,inst:padInst.value,voice:padVoicing.value,len:padLen.value,vol:padVol.value,prog:padProg.value},
     bass:{on:bassOn.checked,inst:bassInst.value,oct:bassOct.value,den:bassDen.value,vol:bassVol.value,seq:bass},
-    auto:{on:autoOn.checked,measures:autoMeasures.value,mel:autoMel.checked,dr:autoDrums.checked,bass:autoBass.checked,ch:autoChords.checked,kit:autoKit.checked,inst:autoInst.checked,key:autoKeyScale.checked},
+    auto:{on:autoOn.checked,measures:autoMeasures.value,mel:autoMel.checked,dr:autoDrums.checked,bass:autoBass.checked,ch:autoChords.checked,kit:autoKit.checked,inst:autoInst.checked,key:autoKeyScale.checked,tempo:autoTempo.checked,tempoDelta:autoTempoDelta.value,voicing:autoVoicing.checked},
     seed:seed.value
   }}
   function restoreState(s){ if(!s) return; bpm.value=s.bpm||bpm.value; swing.value=s.swing||swing.value; humMs.value=s.humMs||humMs.value; humVel.value=s.humVel||humVel.value; master.value=s.master||master.value; master.oninput();
     if(s.key){ rootSel.value=s.key.root; scaleSel.value=s.key.scale; octNum.value=String(s.key.oct); }
-    if(s.lead){ leadInst.value=s.lead.inst; leadVol.value=s.lead.vol; leadVol.oninput(); voicingSel.value=s.lead.voicing; if(s.lead.gate){ leadGate.value=s.lead.gate; leadGate.oninput(); } if(s.lead.fx){ dlyMix.value=s.lead.fx.dly; revMix.value=s.lead.fx.rev; choMix.value=s.lead.fx.cho; phMix.value=s.lead.fx.ph; dlyMix.oninput(); revMix.oninput(); choMix.oninput(); phMix.oninput(); } }
+    if(s.lead){ leadOn.checked = s.lead.on!==undefined ? s.lead.on : true; leadInst.value=s.lead.inst; leadVol.value=s.lead.vol; leadVol.oninput(); voicingSel.value=s.lead.voicing; if(s.lead.gate){ leadGate.value=s.lead.gate; leadGate.oninput(); } if(s.lead.fx){ dlyMix.value=s.lead.fx.dly; revMix.value=s.lead.fx.rev; choMix.value=s.lead.fx.cho; phMix.value=s.lead.fx.ph; dlyMix.oninput(); revMix.oninput(); choMix.oninput(); phMix.oninput(); } }
     if(s.drums){ drumCtrl.kick.type.value=s.drums.types.kick; drumCtrl.snr.type.value=s.drums.types.snr; drumCtrl.hat.type.value=s.drums.types.hat; drumCtrl.prc.type.value=s.drums.types.prc; ['kick','snr','hat','prc'].forEach(k=>{ if(s.drums.grids[k]) drums[k]=s.drums.grids[k].slice(); }); }
     if(s.melody){ melody=s.melody.base.slice(); extra=s.melody.extra.map(a=>a.slice()); melDen.value=s.melody.den; melRange.value=s.melody.range; repeatOn=!!s.melody.repeat; $('repeatState').textContent= repeatOn? 'On':'One-shot'; melDen.oninput(); melRange.oninput(); }
     if(s.pads){ padOn.checked=s.pads.on; padInst.value=s.pads.inst; padVoicing.value=s.pads.voice; padLen.value=s.pads.len; padVol.value=s.pads.vol; padVol.oninput(); padProg.value=s.pads.prog||padProg.value; }
     if(s.bass){ bassOn.checked=s.bass.on; bassInst.value=s.bass.inst; bassOct.value=String(s.bass.oct); bassDen.value=s.bass.den; bassDen.oninput(); bassVol.value=s.bass.vol; bassVol.oninput(); if(s.bass.seq) bass=s.bass.seq.slice(); }
-    if(s.auto){ autoOn.checked=s.auto.on; autoMeasures.value=s.auto.measures; autoMel.checked=s.auto.mel; autoDrums.checked=s.auto.dr; autoBass.checked=s.auto.bass; autoChords.checked=s.auto.ch; autoKit.checked=s.auto.kit; autoInst.checked=s.auto.inst; autoKeyScale.checked=!!s.auto.key; updateAutoStatus(); }
+    if(s.auto){ autoOn.checked=s.auto.on; autoMeasures.value=s.auto.measures; autoMel.checked=s.auto.mel; autoDrums.checked=s.auto.dr; autoBass.checked=s.auto.bass; autoChords.checked=s.auto.ch; autoKit.checked=s.auto.kit; autoInst.checked=s.auto.inst; autoKeyScale.checked=!!s.auto.key; autoTempo.checked=!!s.auto.tempo; if(s.auto.tempoDelta){ autoTempoDelta.value=s.auto.tempoDelta; autoTempoDelta.oninput(); } autoVoicing.checked=!!s.auto.voicing; updateAutoStatus(); }
     if(s.seed!==undefined){ seed.value=s.seed; applySeedStr(s.seed.trim()); }
     renderGrids(); }
 
