@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width,initial-scale=1" />
-<title>Random Music Studio v7.0 — Party Marty</title>
+<title>Random Music Studio v7.1 — Party Marty</title>
 <style>
   :root{ --bg:#0a0f14; --panel:#111827; --ink:#e6edf3; --muted:#9fb0c3; --accent:#7dd3fc; --accent2:#a78bfa; --good:#86efac; --warn:#fbbf24 }
   *{box-sizing:border-box}
@@ -58,7 +58,7 @@
 </head>
 <body>
 <header>
-  <h1>🎹 Random Music Studio v7.0 • Party Marty</h1>
+  <h1>🎹 Random Music Studio v7.1 • Party Marty</h1>
 </header>
 <main>
   <section class="panel controls">
@@ -165,7 +165,9 @@
       </div>
       <div class="row">
         <label>Instrument</label>
-        <select id="leadInst"><option value="sawtooth" selected>Saw</option><option value="sine">Sine</option><option value="square">Square</option><option value="triangle">Triangle</option><option value="supersaw">SuperSaw</option><option value="pluck">Pluck</option><option value="fm">FM</option><option value="noise">Noise</option><option value="piano">Piano</option><option value="bell">Bell</option><option value="organLead">Organ</option><option value="flute">Flute</option><option value="warble">Warble</option></select>
+        <select id="leadInst">
+          <option value="sawtooth" selected>Saw</option><option value="sine">Sine</option><option value="square">Square</option><option value="triangle">Triangle</option><option value="supersaw">SuperSaw</option><option value="pluck">Pluck</option><option value="fm">FM</option><option value="noise">Noise</option><option value="piano">Piano</option><option value="bell">Bell</option><option value="organLead">Organ</option><option value="flute">Flute</option><option value="warble">Warble</option><option value="pwm">PWM Lead</option><option value="hollow">Hollow Reed</option><option value="chipPulse">Chiptune Pulse</option>
+        </select>
       </div>
       <div class="row">
         <label>Vol</label><input id="leadVol" type="range" min="0" max="1.5" step="0.01" value="0.9"/><span id="leadVolVal" class="pill">0.90</span>
@@ -185,6 +187,9 @@
       </div>
       <div class="row">
         <label>Phaser</label><input id="phMix" type="range" min="0" max="1" step="0.01" value="0.12"/><span id="phMixVal" class="pill">0.12</span>
+      </div>
+      <div class="row">
+        <label>Bitcrush</label><input id="bcMix" type="range" min="0" max="1" step="0.01" value="0"/><span id="bcMixVal" class="pill">0.00</span>
       </div>
       <div class="row">
         <label>Gate</label><input id="leadGate" type="range" min="0.05" max="0.9" step="0.01" value="0.35"/><span id="leadGateVal" class="pill">0.35</span>
@@ -220,7 +225,7 @@
       </div>
       <div class="row">
         <label>Instrument</label>
-        <select id="padInst"><option value="warm">Warm Pad</option><option value="strings">Strings</option><option value="organ">Organ</option></select>
+        <select id="padInst"><option value="warm">Warm Pad</option><option value="strings">Strings</option><option value="organ">Organ</option><option value="choir">Formant/Choir</option></select>
       </div>
       <div class="row">
         <label>Voicing</label>
@@ -264,6 +269,7 @@
         <select id="kickType"><option value="acoustic">Acoustic</option><option value="808" selected>808</option><option value="clicky">Clicky</option></select>
         <label>Pitch</label>
         <select id="kickPitch"><option value="low">Low</option><option value="med" selected>Med</option><option value="high">High</option></select>
+        <label>Tune</label><input id="kickTune" type="range" min="-12" max="12" step="1" value="0"/>
         <label>Vol</label><input id="kickVol" type="range" min="0" max="1.2" step="0.01" value="1"/>
         <label>Delay</label><input id="kickDly" type="range" min="0" max="1" step="0.01" value="0"/>
         <label>Reverb</label><input id="kickRev" type="range" min="0" max="1" step="0.01" value="0.05"/>
@@ -277,6 +283,7 @@
         <select id="snrType"><option value="noise" selected>Noise</option><option value="808">808</option><option value="clap">Clap</option></select>
         <label>Pitch</label>
         <select id="snrPitch"><option value="low">Low</option><option value="med" selected>Med</option><option value="high">High</option></select>
+        <label>Tune</label><input id="snrTune" type="range" min="-12" max="12" step="1" value="0"/>
         <label>Vol</label><input id="snrVol" type="range" min="0" max="1.2" step="0.01" value="0.9"/>
         <label>Delay</label><input id="snrDly" type="range" min="0" max="1" step="0.01" value="0.1"/>
         <label>Reverb</label><input id="snrRev" type="range" min="0" max="1" step="0.01" value="0.25"/>
@@ -290,6 +297,7 @@
         <select id="hatType"><option value="ch">Closed</option><option value="oh" selected>Open</option><option value="sh">Shaker</option></select>
         <label>Pitch</label>
         <select id="hatPitch"><option value="low">Low</option><option value="med" selected>Med</option><option value="high">High</option></select>
+        <label>Tune</label><input id="hatTune" type="range" min="-12" max="12" step="1" value="0"/>
         <label>Vol</label><input id="hatVol" type="range" min="0" max="1.2" step="0.01" value="0.75"/>
         <label>Delay</label><input id="hatDly" type="range" min="0" max="1" step="0.01" value="0.05"/>
         <label>Reverb</label><input id="hatRev" type="range" min="0" max="1" step="0.01" value="0.1"/>
@@ -303,6 +311,7 @@
         <select id="prcType"><option value="clap">Clap</option><option value="tom" selected>Tom</option><option value="cow">Cowbell</option></select>
         <label>Pitch</label>
         <select id="prcPitch"><option value="low">Low</option><option value="med" selected>Med</option><option value="high">High</option></select>
+        <label>Tune</label><input id="prcTune" type="range" min="-12" max="12" step="1" value="0"/>
         <label>Vol</label><input id="prcVol" type="range" min="0" max="1.2" step="0.01" value="0.8"/>
         <label>Delay</label><input id="prcDly" type="range" min="0" max="1" step="0.01" value="0.12"/>
         <label>Reverb</label><input id="prcRev" type="range" min ="0" max="1" step="0.01" value="0.18"/>
@@ -342,7 +351,7 @@
   const scales={ major:[0,2,4,5,7,9,11], minor:[0,2,3,5,7,8,10], pent_major:[0,2,4,7,9], pent_minor:[0,3,5,7,10], dorian:[0,2,3,5,7,9,10], mixolydian:[0,2,4,5,7,9,10] };
 
   // Per-instrument loudness trims (1.00 = no change)
-  const INST_TRIM = { supersaw:0.38, organLead:0.65, square:0.85, sawtooth:0.90, fm:0.90, pluck:0.85, bell:0.75, piano:0.80, noise:0.55, sine:1.00, triangle:1.00, flute:0.85, warble:0.85 };
+  const INST_TRIM = { supersaw:0.38, organLead:0.65, square:0.85, sawtooth:0.90, fm:0.90, pluck:0.85, bell:0.75, piano:0.80, noise:0.55, sine:1.00, triangle:1.00, flute:0.85, warble:0.85, pwm:0.85, hollow:0.85, chipPulse:0.80 };
 
   function midiToFreq(m){return 440*Math.pow(2,(m-69)/12)}
   function clamp(v,min,max){return Math.min(max,Math.max(min,v))}
@@ -359,6 +368,7 @@
   const leadInst=$('leadInst'), leadVol=$('leadVol'), leadVolVal=$('leadVolVal'), voicingSel=$('voicing');
   const dlyMix=$('dlyMix'), dlyMixVal=$('dlyMixVal'), revMix=$('revMix'), revMixVal=$('revMixVal'), choMix=$('choMix'), choMixVal=$('choMixVal');
   const phMix=$('phMix'), phMixVal=$('phMixVal'), leadGate=$('leadGate'), leadGateVal=$('leadGateVal');
+  const bcMix=$('bcMix'), bcMixVal=$('bcMixVal');
   const padOn=$('padOn'), padInst=$('padInst'), padVoicing=$('padVoicing'), padLen=$('padLen'), padVol=$('padVol'), padVolVal=$('padVolVal'), padProg=$('padProg');
   const bassOn=$('bassOn'), bassInst=$('bassInst'), bassOct=$('bassOct'), bassDen=$('bassDen'), bassDenVal=$('bassDenVal'), bassVol=$('bassVol'), bassVolVal=$('bassVolVal'), bassRnd=$('bassRnd');
   const melDen=$('melDen'), melDenVal=$('melDenVal'), melRange=$('melRange'), melRangeVal=$('melRangeVal');
@@ -376,10 +386,10 @@
   const seed=$('seed'), applySeedBtn=$('applySeed'), saveBtn=$('saveBtn'), loadBtn=$('loadBtn'), loadFile=$('loadFile'), saveLocal=$('saveLocal'), loadLocal=$('loadLocal');
   const grids={ kick: $('grid-kick'), snr: $('grid-snr'), hat: $('grid-hat'), prc: $('grid-prc'), mel: $('grid-mel') };
   const drumCtrl={ 
-    kick:{type:$('kickType'), pitch:$('kickPitch'), vol:$('kickVol'), dly:$('kickDly'), rev:$('kickRev')}, 
-    snr:{type:$('snrType'), pitch:$('snrPitch'), vol:$('snrVol'), dly:$('snrDly'), rev:$('snrRev')}, 
-    hat:{type:$('hatType'), pitch:$('hatPitch'), vol:$('hatVol'), dly:$('hatDly'), rev:$('hatRev')}, 
-    prc:{type:$('prcType'), pitch:$('prcPitch'), vol:$('prcVol'), dly:$('prcDly'), rev:$('prcRev')}, 
+    kick:{type:$('kickType'), pitch:$('kickPitch'), tune:$('kickTune'), vol:$('kickVol'), dly:$('kickDly'), rev:$('kickRev')}, 
+    snr:{type:$('snrType'), pitch:$('snrPitch'), tune:$('snrTune'), vol:$('snrVol'), dly:$('snrDly'), rev:$('snrRev')}, 
+    hat:{type:$('hatType'), pitch:$('hatPitch'), tune:$('hatTune'), vol:$('hatVol'), dly:$('hatDly'), rev:$('hatRev')}, 
+    prc:{type:$('prcType'), pitch:$('prcPitch'), tune:$('prcTune'), vol:$('prcVol'), dly:$('prcDly'), rev:$('prcRev')}, 
   };
 
   noteNames.forEach((n,i)=>{ const o=document.createElement('option'); o.value=i; o.textContent=n; rootSel.appendChild(o); }); rootSel.value=0;
@@ -391,7 +401,8 @@
   const progressions={ 'I-V-vi-IV':[1,5,6,4], 'vi-IV-I-V':[6,4,1,5], 'ii-V-I-vi':[2,5,1,6], 'I-vi-ii-V':[1,6,2,5], 'I-IV-V-IV':[1,4,5,4] };
 
   let ctx, masterG, comp, outAnalyser, busDry, delay, dlyGain, rev, revGain, chorus, choGain, phaserMix, mediaDest, mediaRec;
-  let phLFO, ap1, ap2, ap3, ap4, apGain;
+  let phLFO, ap1, ap2, ap3, ap4, apGain; // phaser
+  let bcSend, bcNode; // bitcrusher send
 
   async function initAudio(){
     if(ctx) return; 
@@ -416,8 +427,11 @@
     outAnalyser=ctx.createAnalyser(); outAnalyser.fftSize=1024;
 
     busDry=ctx.createGain(); busDry.gain.value=1;
+    bcSend=ctx.createGain(); bcSend.gain.value=parseFloat(bcMix.value);
+    bcNode=createBitcrusherNode(ctx); // returns ScriptProcessorNode
+
     const sum=ctx.createGain();
-    busDry.connect(sum); delay.connect(dlyGain).connect(sum); rev.connect(revGain).connect(sum); chorus.connect(choGain).connect(sum); ap4.connect(phaserMix).connect(sum);
+    busDry.connect(sum); delay.connect(dlyGain).connect(sum); rev.connect(revGain).connect(sum); chorus.connect(choGain).connect(sum); ap4.connect(phaserMix).connect(sum); bcNode.connect(sum);
     sum.connect(comp).connect(masterG).connect(ctx.destination);
     sum.connect(outAnalyser);
 
@@ -427,10 +441,45 @@
   }
   function makeImpulse(ctx, dur, decay){ const len=ctx.sampleRate*dur; const b=ctx.createBuffer(2,len,ctx.sampleRate); for(let ch=0;ch<2;ch++){ const d=b.getChannelData(ch); for(let i=0;i<len;i++){ d[i]=(Math.random()*2-1)*Math.pow(1-i/len,decay); } } return b; }
 
-  function voiceOut(){ const g=new GainNode(ctx,{gain:0}); g.connect(busDry); const d=new GainNode(ctx,{gain:1}); const r=new GainNode(ctx,{gain:1}); const c=new GainNode(ctx,{gain:1}); const p=new GainNode(ctx,{gain:1}); g.connect(d).connect(delay); g.connect(r).connect(rev); g.connect(c).connect(chorus); g.connect(p).connect(ap1).connect(ap2).connect(ap3).connect(ap4); return g; }
+  // --- Bitcrusher (send effect): downsample + bit depth reduce ---
+  function createBitcrusherNode(ctx){
+    const proc = ctx.createScriptProcessor(1024,2,2);
+    let phasorL=0, phasorR=0;
+    proc.bits = 16; // 16..4
+    proc.reduction = 1; // integer samples to hold (1=no downsample)
+    proc.onaudioprocess = e => {
+      const il=e.inputBuffer, ol=e.outputBuffer;
+      const lIn=il.getChannelData(0), rIn=il.numberOfChannels>1?il.getChannelData(1):lIn;
+      const lOut=ol.getChannelData(0), rOut=ol.getChannelData(1);
+      const step = Math.pow(0.5, proc.bits); // quantization step
+      for(let i=0;i<lIn.length;i++){
+        if(phasorL++ % proc.reduction === 0){ this.sampleL = Math.round(lIn[i]/step)*step; }
+        if(phasorR++ % proc.reduction === 0){ this.sampleR = Math.round(rIn[i]/step)*step; }
+        lOut[i]=this.sampleL||0; rOut[i]=this.sampleR||0;
+      }
+    };
+    // helper to map 0..1 mix into bits/reduction
+    proc.setFromMix = mix => {
+      const mm = clamp(mix,0,1);
+      const bits = Math.round(16 - 12*mm); // 16..4
+      const red  = Math.max(1, Math.round(1 + 20*mm)); // 1..21
+      proc.bits = bits; proc.reduction = red;
+    };
+    return proc;
+  }
+
+  function voiceOut(){
+    const g=new GainNode(ctx,{gain:0});
+    // Sends
+    g.connect(busDry);
+    const d=new GainNode(ctx,{gain:1}); const r=new GainNode(ctx,{gain:1}); const c=new GainNode(ctx,{gain:1}); const p=new GainNode(ctx,{gain:1}); const bcs=new GainNode(ctx,{gain:1});
+    g.connect(d).connect(delay); g.connect(r).connect(rev); g.connect(c).connect(chorus); g.connect(p).connect(ap1).connect(ap2).connect(ap3).connect(ap4); g.connect(bcs).connect(bcSend).connect(bcNode);
+    return g; // envelope is applied on g.gain
+  }
   function envGain(target,t,dur,a=0.004,d=0.06,s=0.35,vel=1){ const peak=0.9*vel; target.cancelScheduledValues(t); target.setValueAtTime(0.0001,t); target.linearRampToValueAtTime(peak,t+a); target.linearRampToValueAtTime(peak*s,t+a+d); target.linearRampToValueAtTime(0.0001,t+dur); }
   function humanize(t,baseGain){ const ms=parseFloat(humMs.value), vel=parseFloat(humVel.value); return { t: t + ((rng()*2-1)*(ms/1000)), g: clamp(baseGain + (rng()*2-1)*vel, 0.0001, 2.0) } }
 
+  // --- Lead Voices ---
   function playLeadFreq(freq, time, gate){
     const type=leadInst.value;
     const trim = INST_TRIM[type] ?? 1.0;
@@ -445,7 +494,10 @@
       const det=[-12,-7,-3,3,7,12]; const mix=new GainNode(ctx,{gain:1/Math.sqrt(det.length)}); mix.connect(out); det.forEach(c=>{ const o=new OscillatorNode(ctx,{type:'sawtooth',frequency:freq}); o.detune.value=c; o.connect(mix); o.start(t); o.stop(t+gate+0.1); }); return;
     }
     if(type==='pluck'){
-      const s=new OscillatorNode(ctx,{type:'sine',frequency:freq}); const n=ctx.createBufferSource(); const b=ctx.createBuffer(1,ctx.sampleRate*Math.min(0.2,gate),ctx.sampleRate); const d=b.getChannelData(0); for(let i=0;i<d.length;i++) d[i]=rng()*2-1; n.buffer=b; const bp=new BiquadFilterNode(ctx,{type:'bandpass',frequency:freq*2,Q:10}); s.connect(out); n.connect(bp).connect(out); s.start(t); n.start(t); s.stop(t+gate+0.1); n.stop(t+Math.min(0.2,gate)); return;
+      const s=new OscillatorNode(ctx,{type:'sine',frequency:freq});
+      const n=ctx.createBufferSource(); const b=ctx.createBuffer(1,ctx.sampleRate*Math.min(0.2,gate),ctx.sampleRate); const d=b.getChannelData(0); for(let i=0;i<d.length;i++) d[i]=rng()*2-1; n.buffer=b;
+      const bp=new BiquadFilterNode(ctx,{type:'bandpass',frequency:freq*2,Q:10}); s.connect(out); n.connect(bp).connect(out);
+      s.start(t); n.start(t); s.stop(t+gate+0.1); n.stop(t+Math.min(0.2,gate)); return;
     }
     if(type==='fm'){
       const car=new OscillatorNode(ctx,{type:'sine',frequency:freq}); const mod=new OscillatorNode(ctx,{type:'sine',frequency:freq*2.2}); const mg=new GainNode(ctx,{gain:120}); mod.connect(mg).connect(car.frequency); car.connect(out); car.start(t); mod.start(t); car.stop(t+gate+0.1); mod.stop(t+gate+0.1); return;
@@ -461,31 +513,42 @@
     }
     if(type==='flute'){
       const car=new OscillatorNode(ctx,{type:'sine',frequency:freq});
-      // gentle vibrato in cents via detune
-      const vib=new OscillatorNode(ctx,{type:'sine',frequency:5.5});
-      const vibDepth=new GainNode(ctx,{gain:12}); // cents
-      vib.connect(vibDepth).connect(car.detune);
-      // breath noise
+      const vib=new OscillatorNode(ctx,{type:'sine',frequency:5.5}); const vibDepth=new GainNode(ctx,{gain:12}); vib.connect(vibDepth).connect(car.detune);
       const breath=ctx.createBufferSource(); const nb=ctx.createBuffer(1,ctx.sampleRate*Math.min(0.25,gate),ctx.sampleRate); const bd=nb.getChannelData(0); for(let i=0;i<bd.length;i++) bd[i]=rng()*2-1; breath.buffer=nb; const bp=new BiquadFilterNode(ctx,{type:'bandpass',frequency:2200,Q:1.2}); const bg=new GainNode(ctx,{gain:0.08}); breath.connect(bp).connect(bg).connect(out);
-      car.connect(out);
-      car.start(t); vib.start(t); breath.start(t);
-      car.stop(t+gate+0.2); vib.stop(t+gate+0.2); breath.stop(t+Math.min(0.25,gate));
-      return;
+      car.connect(out); car.start(t); vib.start(t); breath.start(t); car.stop(t+gate+0.2); vib.stop(t+gate+0.2); breath.stop(t+Math.min(0.25,gate)); return;
     }
     if(type==='warble'){
-      const car=new OscillatorNode(ctx,{type:'triangle',frequency:freq});
-      const trem=new GainNode(ctx,{gain:1});
-      const lfo1=new OscillatorNode(ctx,{type:'sine',frequency:6}); // vibrato
-      const lfo2=new OscillatorNode(ctx,{type:'sine',frequency:8}); // tremolo
-      const vibDepth=new GainNode(ctx,{gain:10}); // cents
-      const tremDepth=new GainNode(ctx,{gain:0.25});
-      lfo1.connect(vibDepth).connect(car.detune);
-      lfo2.connect(tremDepth).connect(trem.gain);
-      car.connect(trem).connect(out);
-      car.start(t); lfo1.start(t); lfo2.start(t);
-      car.stop(t+gate+0.2); lfo1.stop(t+gate+0.2); lfo2.stop(t+gate+0.2);
-      return;
+      const car=new OscillatorNode(ctx,{type:'triangle',frequency:freq}); const trem=new GainNode(ctx,{gain:1});
+      const lfo1=new OscillatorNode(ctx,{type:'sine',frequency:6}); const lfo2=new OscillatorNode(ctx,{type:'sine',frequency:8});
+      const vibDepth=new GainNode(ctx,{gain:10}); const tremDepth=new GainNode(ctx,{gain:0.25});
+      lfo1.connect(vibDepth).connect(car.detune); lfo2.connect(tremDepth).connect(trem.gain); car.connect(trem).connect(out);
+      car.start(t); lfo1.start(t); lfo2.start(t); car.stop(t+gate+0.2); lfo1.stop(t+gate+0.2); lfo2.stop(t+gate+0.2); return;
     }
+    if(type==='pwm'){
+      // Approximate PWM: square with slow duty-like tone motion via narrow bandpass sweep
+      const sq=new OscillatorNode(ctx,{type:'square',frequency:freq});
+      const bp=new BiquadFilterNode(ctx,{type:'bandpass',frequency:freq*1.5,Q:8});
+      const lfo=new OscillatorNode(ctx,{type:'sine',frequency:2}); const depth=new GainNode(ctx,{gain:freq*0.6});
+      lfo.connect(depth).connect(bp.frequency);
+      sq.connect(bp).connect(out);
+      sq.start(t); lfo.start(t); sq.stop(t+gate+0.2); lfo.stop(t+gate+0.2); return;
+    }
+    if(type==='hollow'){
+      // Saw + lowpass + a touch of noise — reed-ish
+      const saw=new OscillatorNode(ctx,{type:'sawtooth',frequency:freq});
+      const lp=new BiquadFilterNode(ctx,{type:'lowpass',frequency:1600,Q:0.8});
+      const noise=ctx.createBufferSource(); const nb=ctx.createBuffer(1,ctx.sampleRate*gate,ctx.sampleRate); const nd=nb.getChannelData(0); for(let i=0;i<nd.length;i++) nd[i]=rng()*2-1; noise.buffer=nb; const hp=new BiquadFilterNode(ctx,{type:'highpass',frequency:1500}); const ng=new GainNode(ctx,{gain:0.06});
+      saw.connect(lp).connect(out); noise.connect(hp).connect(ng).connect(out);
+      saw.start(t); noise.start(t); saw.stop(t+gate+0.2); noise.stop(t+Math.min(0.12,gate)); return;
+    }
+    if(type==='chipPulse'){
+      // Nostalgic: square + tiny vibrato; pair well with Bitcrush send
+      const sq=new OscillatorNode(ctx,{type:'square',frequency:freq});
+      const vib=new OscillatorNode(ctx,{type:'sine',frequency:7}); const depth=new GainNode(ctx,{gain:18}); // cents
+      vib.connect(depth).connect(sq.detune);
+      sq.connect(out); sq.start(t); vib.start(t); sq.stop(t+gate+0.2); vib.stop(t+gate+0.2); return;
+    }
+    // default basic
     const o=new OscillatorNode(ctx,{type:type,frequency:freq}); o.connect(out); o.start(t); o.stop(t+gate+0.1);
   }
   function voicingOffsets(){ const v=voicingSel.value; if(v==='uni')return [0]; if(v==='oct')return [0,12]; if(v==='thr')return [0,4]; if(v==='fif')return [0,7]; if(v==='six')return [0,9]; if(v==='triad')return [0,4,7]; return [0]; }
@@ -494,7 +557,18 @@
   function padVoicingIntervals(){ const v=padVoicing.value; if(v==='triad')return [0,4,7]; if(v==='7th')return [0,4,7,11]; if(v==='sus2')return [0,2,7]; if(v==='sus4')return [0,5,7]; return [0,4,7]; }
   function degreeToSemitone(deg){ const sc=scales[scaleSel.value]; const root=parseInt(rootSel.value); const oct=parseInt(octNum.value); const rel=sc[(deg-1)%sc.length]; const base=12*(oct+1)+root; return base+rel; }
   function padChordForBar(barIndex){ let prog=padProg.value; if(prog==='random'){ const keys=Object.keys(progressions); prog=pick(keys,rng); } const seq=progressions[prog]||[1,5,6,4]; const barsPerChord=parseInt(padLen.value)/4; const chordIdx=Math.floor((barIndex)/barsPerChord)%seq.length; const deg=seq[chordIdx]; const root=degreeToSemitone(deg); const ints=padVoicingIntervals(); return ints.map(i=>root+i); }
-  function playPadChord(midiList, time, beatLen){ const vol=parseFloat(padVol.value); const dur=beatLen*parseInt(padLen.value); midiList.forEach((m,i)=>{ const out=voiceOut(); const {t,g}=humanize(time, vol*(i===0?0.9:0.7)); envGain(out.gain,t,dur,0.06,0.5,0.8,g); const inst=padInst.value; if(inst==='organ'){ const o=new OscillatorNode(ctx,{type:'square',frequency:midiToFreq(m)}); o.connect(out); o.start(t); o.stop(t+dur+0.2); } else if(inst==='strings'){ const o1=new OscillatorNode(ctx,{type:'sawtooth',frequency:midiToFreq(m)}); const o2=new OscillatorNode(ctx,{type:'sawtooth',frequency:midiToFreq(m)}); o2.detune.value=6; o1.connect(out); o2.connect(out); o1.start(t); o2.start(t); o1.stop(t+dur+0.2); o2.stop(t+dur+0.2); } else { const o=new OscillatorNode(ctx,{type:'triangle',frequency:midiToFreq(m)}); const lp=new BiquadFilterNode(ctx,{type:'lowpass',frequency:1800,Q:0.5}); o.connect(lp).connect(out); o.start(t); o.stop(t+dur+0.2); } }); }
+  function playPadChord(midiList, time, beatLen){ const vol=parseFloat(padVol.value); const dur=beatLen*parseInt(padLen.value); midiList.forEach((m,i)=>{ const out=voiceOut(); const {t,g}=humanize(time, vol*(i===0?0.9:0.7)); envGain(out.gain,t,dur,0.06,0.5,0.8,g); const inst=padInst.value; if(inst==='organ'){ const o=new OscillatorNode(ctx,{type:'square',frequency:midiToFreq(m)}); o.connect(out); o.start(t); o.stop(t+dur+0.2); } else if(inst==='strings'){ const o1=new OscillatorNode(ctx,{type:'sawtooth',frequency:midiToFreq(m)}); const o2=new OscillatorNode(ctx,{type:'sawtooth',frequency:midiToFreq(m)}); o2.detune.value=6; o1.connect(out); o2.connect(out); o1.start(t); o2.start(t); o1.stop(t+dur+0.2); o2.stop(t+dur+0.2); } else if(inst==='choir') { // formant/choir: two sweeping formants in parallel
+        const src=new OscillatorNode(ctx,{type:'sawtooth',frequency:midiToFreq(m)});
+        const bp1=new BiquadFilterNode(ctx,{type:'bandpass',frequency:900,Q:6});
+        const bp2=new BiquadFilterNode(ctx,{type:'bandpass',frequency:1500,Q:6});
+        const l1=new OscillatorNode(ctx,{type:'sine',frequency:0.23}); const d1=new GainNode(ctx,{gain:400});
+        const l2=new OscillatorNode(ctx,{type:'sine',frequency:0.19}); const d2=new GainNode(ctx,{gain:600});
+        l1.connect(d1).connect(bp1.frequency); l2.connect(d2).connect(bp2.frequency);
+        const lp=new BiquadFilterNode(ctx,{type:'lowpass',frequency:3000,Q:0.3});
+        const gsum=new GainNode(ctx,{gain:1/Math.sqrt(2)});
+        src.connect(bp1).connect(gsum); src.connect(bp2).connect(gsum); gsum.connect(lp).connect(out);
+        src.start(t); l1.start(t); l2.start(t); src.stop(t+dur+0.2); l1.stop(t+dur+0.2); l2.stop(t+dur+0.2);
+      } else { const o=new OscillatorNode(ctx,{type:'triangle',frequency:midiToFreq(m)}); const lp=new BiquadFilterNode(ctx,{type:'lowpass',frequency:1800,Q:0.5}); o.connect(lp).connect(out); o.start(t); o.stop(t+dur+0.2); } }); }
 
   function playBass(midi, time, gate){ const vol=parseFloat(bassVol.value); const {t,g}=humanize(time, vol); const inst=bassInst.value; const out=voiceOut(); envGain(out.gain,t,Math.max(0.1,gate),0.002,0.04,0.5,g);
     if(inst==='sub'){ const o=new OscillatorNode(ctx,{type:'sine',frequency:midiToFreq(midi)}); o.connect(out); o.start(t); o.stop(t+gate+0.1); return; }
@@ -504,12 +578,12 @@
 
   function drumSend(out, lane){ const cfg = drumCtrl[lane]; const d = ctx.createGain(); d.gain.value = parseFloat(cfg.dly.value); const r = ctx.createGain(); r.gain.value = parseFloat(cfg.rev.value); out.connect(busDry); out.connect(d).connect(delay); out.connect(r).connect(rev); out.connect(chorus); out.connect(ap1); }
   function pitchMul(sel){ return sel==='low'?0.85: (sel==='high'?1.2:1.0); }
-  function drumKick(t){ const type=drumCtrl.kick.type.value; const pm=pitchMul(drumCtrl.kick.pitch.value); const vol=parseFloat(drumCtrl.kick.vol.value); const {t:tt,g}=humanize(t,vol); const baseF = (type==='808'?55:(type==='clicky'?80:65))*pm; const startF = (type==='clicky'?170:type==='808'?120:150)*pm; const endF=(type==='808'?30:40)*pm; const o=new OscillatorNode(ctx,{type:'sine',frequency:baseF}); const gnode=new GainNode(ctx,{gain:1}); o.connect(gnode); drumSend(gnode,'kick'); o.start(tt); o.frequency.setValueAtTime(startF,tt); o.frequency.exponentialRampToValueAtTime(endF,tt+0.18); gnode.gain.setValueAtTime(g,tt); gnode.gain.exponentialRampToValueAtTime(0.001,tt+(type==='808'?0.45:0.28)); if(type==='clicky'){ const click=ctx.createBufferSource(); const b=ctx.createBuffer(1,ctx.sampleRate*0.02,ctx.sampleRate); const d=b.getChannelData(0); for(let i=0;i<d.length;i++) d[i]=rng()*2-1; click.buffer=b; const hp=new BiquadFilterNode(ctx,{type:'highpass',frequency:5000}); const cg=new GainNode(ctx,{gain:g*0.6}); click.connect(hp).connect(cg); drumSend(cg,'kick'); click.start(tt); click.stop(tt+0.02);} o.stop(tt+0.6); }
-  function drumSnare(t){ const type=drumCtrl.snr.type.value; const pm=pitchMul(drumCtrl.snr.pitch.value); const vol=parseFloat(drumCtrl.snr.vol.value); const {t:tt,g}=humanize(t,vol); if(type==='clap'){ for(let i=0;i<3;i++){ const dly=i*0.012; const src=ctx.createBufferSource(); const b=ctx.createBuffer(1,ctx.sampleRate*0.08,ctx.sampleRate); const d=b.getChannelData(0); for(let j=0;j<d.length;j++) d[j]=rng()*2-1; src.buffer=b; const hp=new BiquadFilterNode(ctx,{type:'highpass',frequency:1500*pm}); const gg=new GainNode(ctx,{gain:g*(i===0?0.9:0.6)}); src.connect(hp).connect(gg); drumSend(gg,'snr'); src.start(tt+dly); src.stop(tt+dly+0.08);} return; }
+  function tuneMul(semi){ return Math.pow(2, (parseInt(semi)||0)/12); }
+  function drumKick(t){ const type=drumCtrl.kick.type.value; const pm=pitchMul(drumCtrl.kick.pitch.value) * tuneMul(drumCtrl.kick.tune.value); const vol=parseFloat(drumCtrl.kick.vol.value); const {t:tt,g}=humanize(t,vol); const baseF = (type==='808'?55:(type==='clicky'?80:65))*pm; const startF = (type==='clicky'?170:type==='808'?120:150)*pm; const endF=(type==='808'?30:40)*pm; const o=new OscillatorNode(ctx,{type:'sine',frequency:baseF}); const gnode=new GainNode(ctx,{gain:1}); o.connect(gnode); drumSend(gnode,'kick'); o.start(tt); o.frequency.setValueAtTime(startF,tt); o.frequency.exponentialRampToValueAtTime(endF,tt+0.18); gnode.gain.setValueAtTime(g,tt); gnode.gain.exponentialRampToValueAtTime(0.001,tt+(type==='808'?0.45:0.28)); if(type==='clicky'){ const click=ctx.createBufferSource(); const b=ctx.createBuffer(1,ctx.sampleRate*0.02,ctx.sampleRate); const d=b.getChannelData(0); for(let i=0;i<d.length;i++) d[i]=rng()*2-1; click.buffer=b; const hp=new BiquadFilterNode(ctx,{type:'highpass',frequency:5000*pm}); const cg=new GainNode(ctx,{gain:g*0.6}); click.connect(hp).connect(cg); drumSend(cg,'kick'); click.start(tt); click.stop(tt+0.02);} o.stop(tt+0.6); }
+  function drumSnare(t){ const type=drumCtrl.snr.type.value; const pm=pitchMul(drumCtrl.snr.pitch.value) * tuneMul(drumCtrl.snr.tune.value); const vol=parseFloat(drumCtrl.snr.vol.value); const {t:tt,g}=humanize(t,vol); if(type==='clap'){ for(let i=0;i<3;i++){ const dly=i*0.012; const src=ctx.createBufferSource(); const b=ctx.createBuffer(1,ctx.sampleRate*0.08,ctx.sampleRate); const d=b.getChannelData(0); for(let j=0;j<d.length;j++) d[j]=rng()*2-1; src.buffer=b; const hp=new BiquadFilterNode(ctx,{type:'highpass',frequency:1500*pm}); const gg=new GainNode(ctx,{gain:g*(i===0?0.9:0.6)}); src.connect(hp).connect(gg); drumSend(gg,'snr'); src.start(tt+dly); src.stop(tt+dly+0.08);} return; }
     const noise=ctx.createBufferSource(); const b=ctx.createBuffer(1,ctx.sampleRate*0.25,ctx.sampleRate); const d=b.getChannelData(0); for(let i=0;i<d.length;i++) d[i]=rng()*2-1; noise.buffer=b; const bp=new BiquadFilterNode(ctx,{type:'bandpass',frequency:(type==='808'?1200:1800)*pm,Q:0.8}); const gg=new GainNode(ctx,{gain:g}); noise.connect(bp).connect(gg); drumSend(gg,'snr'); noise.start(tt); gg.gain.setValueAtTime(g,tt); gg.gain.exponentialRampToValueAtTime(0.001,tt+(type==='808'?0.3:0.22)); noise.stop(tt+0.26); }
-  function drumHat(t){ const type=drumCtrl.hat.type.value; const pm=pitchMul(drumCtrl.hat.pitch.value); const vol=parseFloat(drumCtrl.hat.vol.value); const {t:tt,g}=humanize(t,vol); const src=ctx.createBufferSource(); const b=ctx.createBuffer(1,ctx.sampleRate*(type==='oh'?0.25:0.06),ctx.sampleRate); const d=b.getChannelData(0); for(let i=0;i<d.length;i++) d[i]=rng()*2-1; src.buffer=b; let node; if(type==='sh'){ node=new BiquadFilterNode(ctx,{type:'bandpass',frequency:4000*pm,Q:2}); } else { node=new BiquadFilterNode(ctx,{type:'highpass',frequency:6000*pm,Q:0.7}); } const gg=new GainNode(ctx,{gain:g*(type==='oh'?0.5:0.35)}); src.connect(node).connect(gg); drumSend(gg,'hat'); src.start(tt); gg.gain.setValueAtTime(gg.gain.value,tt); gg.gain.exponentialRampToValueAtTime(0.001,tt+(type==='oh'?0.22:0.07)); src.stop(tt+(type==='oh'?0.25:0.08)); }
-  function drumPerc(t){ const type=drumCtrl.prc.type.value; const pm=pitchMul(drumCtrl.prc.pitch.value); const vol=parseFloat(drumCtrl.prc.vol.value); const {t:tt,g}=humanize(t,vol); if(type==='tom'){ const o=new OscillatorNode(ctx,{type:'sine',frequency:180*pm}); const gg=new GainNode(ctx,{gain:g}); o.connect(gg); drumSend(gg,'prc'); o.start(tt); o.frequency.exponentialRampToValueAtTime(80*pm,tt+0.15); gg.gain.setValueAtTime(g,tt); gg.gain.exponentialRampToValueAtTime(0.001,tt+0.25); o.stop(tt+0.3); return; } if(type==='cow'){ const o1=new OscillatorNode(ctx,{type:'square',frequency:540*pm}); const o2=new OscillatorNode(ctx,{type:'square',frequency:800*pm}); const mix=new GainNode(ctx,{gain:1}); o1.connect(mix); o2.connect(mix); const eg=new GainNode(ctx,{gain:1}); mix.connect(eg); drumSend(eg,'prc'); eg.gain.setValueAtTime(g*0.25,tt); eg.gain.exponentialRampToValueAtTime(0.001,tt+0.18); o1.start(tt); o2.start(tt); o1.stop(tt+0.2); o2.stop(tt+0.2); return; } // clap fallback to snare
-    drumSnare(tt); }
+  function drumHat(t){ const type=drumCtrl.hat.type.value; const pm=pitchMul(drumCtrl.hat.pitch.value) * tuneMul(drumCtrl.hat.tune.value); const vol=parseFloat(drumCtrl.hat.vol.value); const {t:tt,g}=humanize(t,vol); const src=ctx.createBufferSource(); const b=ctx.createBuffer(1,ctx.sampleRate*(type==='oh'?0.25:0.06),ctx.sampleRate); const d=b.getChannelData(0); for(let i=0;i<d.length;i++) d[i]=rng()*2-1; src.buffer=b; let node; if(type==='sh'){ node=new BiquadFilterNode(ctx,{type:'bandpass',frequency:4000*pm,Q:2}); } else { node=new BiquadFilterNode(ctx,{type:'highpass',frequency:6000*pm,Q:0.7}); } const gg=new GainNode(ctx,{gain:g*(type==='oh'?0.5:0.35)}); src.connect(node).connect(gg); drumSend(gg,'hat'); src.start(tt); gg.gain.setValueAtTime(gg.gain.value,tt); gg.gain.exponentialRampToValueAtTime(0.001,tt+(type==='oh'?0.22:0.07)); src.stop(tt+(type==='oh'?0.25:0.08)); }
+  function drumPerc(t){ const type=drumCtrl.prc.type.value; const pm=pitchMul(drumCtrl.prc.pitch.value) * tuneMul(drumCtrl.prc.tune.value); const vol=parseFloat(drumCtrl.prc.vol.value); const {t:tt,g}=humanize(t,vol); if(type==='tom'){ const o=new OscillatorNode(ctx,{type:'sine',frequency:180*pm}); const gg=new GainNode(ctx,{gain:g}); o.connect(gg); drumSend(gg,'prc'); o.start(tt); o.frequency.exponentialRampToValueAtTime(80*pm,tt+0.15); gg.gain.setValueAtTime(g,tt); gg.gain.exponentialRampToValueAtTime(0.001,tt+0.25); o.stop(tt+0.3); return; } if(type==='cow'){ const o1=new OscillatorNode(ctx,{type:'square',frequency:540*pm}); const o2=new OscillatorNode(ctx,{type:'square',frequency:800*pm}); const mix=new GainNode(ctx,{gain:1}); o1.connect(mix); o2.connect(mix); const eg=new GainNode(ctx,{gain:1}); mix.connect(eg); drumSend(eg,'prc'); eg.gain.setValueAtTime(g*0.25,tt); eg.gain.exponentialRampToValueAtTime(0.001,tt+0.18); o1.start(tt); o2.start(tt); o1.stop(tt+0.2); o2.stop(tt+0.2); return; } drumSnare(tt); }
 
   function schedule(){ const secPerBeat=60/parseFloat(bpm.value); const sw=parseFloat(swing.value); while(nextNoteTime < ctx.currentTime + 0.2){ const stepInBeat=current16%4; const swingOffset=((current16%2)===1)? sw*secPerBeat*0.25 : 0; const t=nextNoteTime + swingOffset; 
       if(drums.kick[current16]) drumKick(t); if(drums.snr[current16]) drumSnare(t); if(drums.hat[current16]) drumHat(t); if(drums.prc[current16]) drumPerc(t);
@@ -561,6 +635,7 @@
   phMix.oninput=()=>{ if(phaserMix) phaserMix.gain.value=parseFloat(phMix.value); phMixVal.textContent=parseFloat(phMix.value).toFixed(2)};
   leadGate.oninput=()=>{ leadGateVal.textContent=parseFloat(leadGate.value).toFixed(2)};
   leadVol.oninput=()=>{ leadVolVal.textContent=parseFloat(leadVol.value).toFixed(2) };
+  bcMix.oninput=()=>{ bcMixVal.textContent=parseFloat(bcMix.value).toFixed(2); if(bcSend) bcSend.gain.value=parseFloat(bcMix.value); if(bcNode && bcNode.setFromMix) bcNode.setFromMix(parseFloat(bcMix.value)); };
   melDen.oninput=()=>{ melDenVal.textContent=parseFloat(melDen.value).toFixed(2)}; melRange.oninput=()=>{ melRangeVal.textContent=melRange.value};
   padVol.oninput=()=>{ padVolVal.textContent=parseFloat(padVol.value).toFixed(2)};
   bassVol.oninput=()=>{ bassVolVal.textContent=parseFloat(bassVol.value).toFixed(2)}; bassDen.oninput=()=>{ bassDenVal.textContent=parseFloat(bassDen.value).toFixed(2)};
@@ -580,20 +655,20 @@
   $('startBtn').onclick=async()=>{ await initAudio(); if(ctx.state==='suspended') await ctx.resume(); start(); }
   $('stopBtn').onclick=()=>stop();
   recBtn.onclick=()=>toggleRec();
-  rndAll.onclick=()=>{ rootSel.value=Math.floor(rng()*12); scaleSel.value=pick(Object.keys(scales),rng); leadInst.value=pick(['sawtooth','sine','square','triangle','supersaw','pluck','fm','noise','piano','bell','organLead','flute','warble'],rng); octNum.value = String(3 + Math.floor(rng()*3)); bpm.value=90+Math.floor(rng()*80); bpmVal.textContent=bpm.value; randomDrums(); randomMel(); randomBass(); };
+  rndAll.onclick=()=>{ rootSel.value=Math.floor(rng()*12); scaleSel.value=pick(Object.keys(scales),rng); leadInst.value=pick(['sawtooth','sine','square','triangle','supersaw','pluck','fm','noise','piano','bell','organLead','flute','warble','pwm','hollow','chipPulse'],rng); octNum.value = String(3 + Math.floor(rng()*3)); bpm.value=90+Math.floor(rng()*80); bpmVal.textContent=bpm.value; randomDrums(); randomMel(); randomBass(); };
 
   applySeedBtn.onclick=()=>{ applySeedStr(seed.value.trim()); };
-  saveBtn.onclick=()=>{ const state=collectState(); const blob=new Blob([JSON.stringify(state,null,2)],{type:'application/json'}); const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download='random_music_studio_v7_0.json'; a.click(); };
+  saveBtn.onclick=()=>{ const state=collectState(); const blob=new Blob([JSON.stringify(state,null,2)],{type:'application/json'}); const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download='random_music_studio_v7_1.json'; a.click(); };
   loadBtn.onclick=()=>loadFile.click();
   loadFile.onchange=async(e)=>{ const f=e.target.files[0]; if(!f) return; const txt=await f.text(); const obj=JSON.parse(txt); restoreState(obj); };
-  saveLocal.onclick=()=>{ localStorage.setItem('random_studio_v7_0', JSON.stringify(collectState())); };
-  loadLocal.onclick=()=>{ const txt=localStorage.getItem('random_studio_v7_0'); if(txt){ restoreState(JSON.parse(txt)); } };
+  saveLocal.onclick=()=>{ localStorage.setItem('random_studio_v7_1', JSON.stringify(collectState())); };
+  loadLocal.onclick=()=>{ const txt=localStorage.getItem('random_studio_v7_1'); if(txt){ restoreState(JSON.parse(txt)); } };
 
   function collectState(){ return {
     bpm:bpm.value,swing:swing.value,humMs:humMs.value,humVel:humVel.value,master:master.value,
     key:{root:rootSel.value,scale:scaleSel.value,oct:octNum.value},
-    lead:{on:leadOn.checked,inst:leadInst.value,vol:leadVol.value,voicing:voicingSel.value,gate:leadGate.value,fx:{dly:dlyMix.value,rev:revMix.value,cho:choMix.value,ph:phMix.value}},
-    drums:{types:{kick:drumCtrl.kick.type.value,snr:drumCtrl.snr.type.value,hat:drumCtrl.hat.type.value,prc:drumCtrl.prc.type.value}, pitch:{kick:drumCtrl.kick.pitch.value,snr:drumCtrl.snr.pitch.value,hat:drumCtrl.hat.pitch.value,prc:drumCtrl.prc.pitch.value}, grids:drums},
+    lead:{on:leadOn.checked,inst:leadInst.value,vol:leadVol.value,voicing:voicingSel.value,gate:leadGate.value,fx:{dly:dlyMix.value,rev:revMix.value,cho:choMix.value,ph:phMix.value,bc:bcMix.value}},
+    drums:{types:{kick:drumCtrl.kick.type.value,snr:drumCtrl.snr.type.value,hat:drumCtrl.hat.type.value,prc:drumCtrl.prc.type.value}, pitch:{kick:drumCtrl.kick.pitch.value,snr:drumCtrl.snr.pitch.value,hat:drumCtrl.hat.pitch.value,prc:drumCtrl.prc.pitch.value}, tune:{kick:drumCtrl.kick.tune.value,snr:drumCtrl.snr.tune.value,hat:drumCtrl.hat.tune.value,prc:drumCtrl.prc.tune.value}, grids:drums},
     melody:{base:melody,extra:extra,den:melDen.value,range:melRange.value,repeat:repeatOn},
     pads:{on:padOn.checked,inst:padInst.value,voice:padVoicing.value,len:padLen.value,vol:padVol.value,prog:padProg.value},
     bass:{on:bassOn.checked,inst:bassInst.value,oct:bassOct.value,den:bassDen.value,vol:bassVol.value,seq:bass},
@@ -602,8 +677,8 @@
   }}
   function restoreState(s){ if(!s) return; bpm.value=s.bpm||bpm.value; swing.value=s.swing||swing.value; humMs.value=s.humMs||humMs.value; humVel.value=s.humVel||humVel.value; master.value=s.master||master.value; master.oninput();
     if(s.key){ rootSel.value=s.key.root; scaleSel.value=s.key.scale; octNum.value=String(s.key.oct); }
-    if(s.lead){ leadOn.checked = s.lead.on!==undefined ? s.lead.on : true; leadInst.value=s.lead.inst; leadVol.value=s.lead.vol; leadVol.oninput(); voicingSel.value=s.lead.voicing; if(s.lead.gate){ leadGate.value=s.lead.gate; leadGate.oninput(); } if(s.lead.fx){ dlyMix.value=s.lead.fx.dly; revMix.value=s.lead.fx.rev; choMix.value=s.lead.fx.cho; phMix.value=s.lead.fx.ph; dlyMix.oninput(); revMix.oninput(); choMix.oninput(); phMix.oninput(); } }
-    if(s.drums){ drumCtrl.kick.type.value=s.drums.types.kick; drumCtrl.snr.type.value=s.drums.types.snr; drumCtrl.hat.type.value=s.drums.types.hat; drumCtrl.prc.type.value=s.drums.types.prc; if(s.drums.pitch){ drumCtrl.kick.pitch.value=s.drums.pitch.kick; drumCtrl.snr.pitch.value=s.drums.pitch.snr; drumCtrl.hat.pitch.value=s.drums.pitch.hat; drumCtrl.prc.pitch.value=s.drums.pitch.prc; } ['kick','snr','hat','prc'].forEach(k=>{ if(s.drums.grids[k]) drums[k]=s.drums.grids[k].slice(); }); }
+    if(s.lead){ leadOn.checked = s.lead.on!==undefined ? s.lead.on : true; leadInst.value=s.lead.inst; leadVol.value=s.lead.vol; leadVol.oninput(); voicingSel.value=s.lead.voicing; if(s.lead.gate){ leadGate.value=s.lead.gate; leadGate.oninput(); } if(s.lead.fx){ dlyMix.value=s.lead.fx.dly; revMix.value=s.lead.fx.rev; choMix.value=s.lead.fx.cho; phMix.value=s.lead.fx.ph; bcMix.value=s.lead.fx.bc||0; bcMix.oninput(); dlyMix.oninput(); revMix.oninput(); choMix.oninput(); phMix.oninput(); } }
+    if(s.drums){ drumCtrl.kick.type.value=s.drums.types.kick; drumCtrl.snr.type.value=s.drums.types.snr; drumCtrl.hat.type.value=s.drums.types.hat; drumCtrl.prc.type.value=s.drums.types.prc; if(s.drums.pitch){ drumCtrl.kick.pitch.value=s.drums.pitch.kick; drumCtrl.snr.pitch.value=s.drums.pitch.snr; drumCtrl.hat.pitch.value=s.drums.pitch.hat; drumCtrl.prc.pitch.value=s.drums.pitch.prc; } if(s.drums.tune){ drumCtrl.kick.tune.value=s.drums.tune.kick||0; drumCtrl.snr.tune.value=s.drums.tune.snr||0; drumCtrl.hat.tune.value=s.drums.tune.hat||0; drumCtrl.prc.tune.value=s.drums.tune.prc||0; } ['kick','snr','hat','prc'].forEach(k=>{ if(s.drums.grids[k]) drums[k]=s.drums.grids[k].slice(); }); }
     if(s.melody){ melody=s.melody.base.slice(); extra=s.melody.extra.map(a=>a.slice()); melDen.value=s.melody.den; melRange.value=s.melody.range; repeatOn=!!s.melody.repeat; $('repeatState').textContent= repeatOn? 'On':'One-shot'; melDen.oninput(); melRange.oninput(); }
     if(s.pads){ padOn.checked=s.pads.on; padInst.value=s.pads.inst; padVoicing.value=s.pads.voice; padLen.value=s.pads.len; padVol.value=s.pads.vol; padVol.oninput(); padProg.value=s.pads.prog||padProg.value; }
     if(s.bass){ bassOn.checked=s.bass.on; bassInst.value=s.bass.inst; bassOct.value=String(s.bass.oct); bassDen.value=s.bass.den; bassDen.oninput(); bassVol.value=s.bass.vol; bassVol.oninput(); if(s.bass.seq) bass=s.bass.seq.slice(); }
@@ -611,7 +686,7 @@
     if(s.seed!==undefined){ seed.value=s.seed; applySeedStr(s.seed.trim()); }
     renderGrids(); }
 
-  const leadChoices=['sawtooth','sine','square','triangle','supersaw','pluck','fm','noise','piano','bell','organLead','flute','warble'];
+  const leadChoices=['sawtooth','sine','square','triangle','supersaw','pluck','fm','noise','piano','bell','organLead','flute','warble','pwm','hollow','chipPulse'];
   function cycleInstrument(dir=1){ const idx=leadChoices.indexOf(leadInst.value); const next=(idx+dir+leadChoices.length)%leadChoices.length; leadInst.value=leadChoices[next]; }
   function switchInstrument(mode='cycle'){ if(mode==='random'){ leadInst.value=leadChoices[Math.floor(rng()*leadChoices.length)]; } else { cycleInstrument(); } }
 
