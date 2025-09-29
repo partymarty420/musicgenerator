@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width,initial-scale=1" />
-<title>Random Music Studio v7.1 — Party Marty</title>
+<title>Random Music Studio v7.2 — Party Martys</title>
 <style>
   :root{ --bg:#0a0f14; --panel:#111827; --ink:#e6edf3; --muted:#9fb0c3; --accent:#7dd3fc; --accent2:#a78bfa; --good:#86efac; --warn:#fbbf24 }
   *{box-sizing:border-box}
@@ -58,7 +58,7 @@
 </head>
 <body>
 <header>
-  <h1>🎹 Random Music Studio v7.1 • Party Marty</h1>
+  <h1>🎹 Random Music Studio v7.2 • Party Marty</h1>
 </header>
 <main>
   <section class="panel controls">
@@ -109,6 +109,16 @@
         <button id="nextInst">🎛️ Switch Instrument</button>
         <span class="pill small" id="autoStatus">Off</span>
         <button id="holdBtn">⏸️ Hold Pattern</button>
+      </div>
+      <!-- NEW: Quick Actions for instant randomize/clear per section -->
+      <div class="row">
+        <label>Quick Actions</label>
+        <button id="qaRndDrums">🎲 Randomize Drums</button>
+        <button id="qaClrDrums">🧹 Clear Drums</button>
+        <button id="qaRndMel">🎲 Randomize Melody</button>
+        <button id="qaClrMel">🧹 Clear Melody</button>
+        <button id="qaRndBass">🎲 Randomize Bass</button>
+        <button id="qaClrBass">🧹 Clear Bass</button>
       </div>
     </fieldset>
 
@@ -215,6 +225,7 @@
       <div class="row">
         <label>Vol</label><input id="bassVol" type="range" min="0" max="1.2" step="0.01" value="0.85"/><span id="bassVolVal" class="pill">0.85</span>
         <button id="bassRnd">🎲 Randomize Bass</button>
+        <button id="bassClr">🧹 Clear</button>
       </div>
     </fieldset>
 
@@ -350,7 +361,6 @@
   const noteNames=["C","C#","D","D#","E","F","F#","G","G#","A","A#","B"];
   const scales={ major:[0,2,4,5,7,9,11], minor:[0,2,3,5,7,8,10], pent_major:[0,2,4,7,9], pent_minor:[0,3,5,7,10], dorian:[0,2,3,5,7,9,10], mixolydian:[0,2,4,5,7,9,10] };
 
-  // Per-instrument loudness trims (1.00 = no change)
   const INST_TRIM = { supersaw:0.38, organLead:0.65, square:0.85, sawtooth:0.90, fm:0.90, pluck:0.85, bell:0.75, piano:0.80, noise:0.55, sine:1.00, triangle:1.00, flute:0.85, warble:0.85, pwm:0.85, hollow:0.85, chipPulse:0.80 };
 
   function midiToFreq(m){return 440*Math.pow(2,(m-69)/12)}
@@ -370,7 +380,7 @@
   const phMix=$('phMix'), phMixVal=$('phMixVal'), leadGate=$('leadGate'), leadGateVal=$('leadGateVal');
   const bcMix=$('bcMix'), bcMixVal=$('bcMixVal');
   const padOn=$('padOn'), padInst=$('padInst'), padVoicing=$('padVoicing'), padLen=$('padLen'), padVol=$('padVol'), padVolVal=$('padVolVal'), padProg=$('padProg');
-  const bassOn=$('bassOn'), bassInst=$('bassInst'), bassOct=$('bassOct'), bassDen=$('bassDen'), bassDenVal=$('bassDenVal'), bassVol=$('bassVol'), bassVolVal=$('bassVolVal'), bassRnd=$('bassRnd');
+  const bassOn=$('bassOn'), bassInst=$('bassInst'), bassOct=$('bassOct'), bassDen=$('bassDen'), bassDenVal=$('bassDenVal'), bassVol=$('bassVol'), bassVolVal=$('bassVolVal'), bassRnd=$('bassRnd'), bassClr=$('bassClr');
   const melDen=$('melDen'), melDenVal=$('melDenVal'), melRange=$('melRange'), melRangeVal=$('melRangeVal');
   const master=$('master'), masterVal=$('masterVal');
   const startBtn=$('startBtn'), stopBtn=$('stopBtn'), rndAll=$('rndAll');
@@ -383,6 +393,9 @@
   const autoVoicing=$('autoVoicing');
   const nextInst=$('nextInst'), autoStatus=$('autoStatus');
   const holdBtn=$('holdBtn'); let hold=false;
+  // NEW quick action buttons
+  const qaRndDrums=$('qaRndDrums'), qaClrDrums=$('qaClrDrums'), qaRndMel=$('qaRndMel'), qaClrMel=$('qaClrMel'), qaRndBass=$('qaRndBass'), qaClrBass=$('qaClrBass');
+
   const seed=$('seed'), applySeedBtn=$('applySeed'), saveBtn=$('saveBtn'), loadBtn=$('loadBtn'), loadFile=$('loadFile'), saveLocal=$('saveLocal'), loadLocal=$('loadLocal');
   const grids={ kick: $('grid-kick'), snr: $('grid-snr'), hat: $('grid-hat'), prc: $('grid-prc'), mel: $('grid-mel') };
   const drumCtrl={ 
@@ -428,7 +441,7 @@
 
     busDry=ctx.createGain(); busDry.gain.value=1;
     bcSend=ctx.createGain(); bcSend.gain.value=parseFloat(bcMix.value);
-    bcNode=createBitcrusherNode(ctx); // returns ScriptProcessorNode
+    bcNode=createBitcrusherNode(ctx);
 
     const sum=ctx.createGain();
     busDry.connect(sum); delay.connect(dlyGain).connect(sum); rev.connect(revGain).connect(sum); chorus.connect(choGain).connect(sum); ap4.connect(phaserMix).connect(sum); bcNode.connect(sum);
@@ -441,28 +454,26 @@
   }
   function makeImpulse(ctx, dur, decay){ const len=ctx.sampleRate*dur; const b=ctx.createBuffer(2,len,ctx.sampleRate); for(let ch=0;ch<2;ch++){ const d=b.getChannelData(ch); for(let i=0;i<len;i++){ d[i]=(Math.random()*2-1)*Math.pow(1-i/len,decay); } } return b; }
 
-  // --- Bitcrusher (send effect): downsample + bit depth reduce ---
   function createBitcrusherNode(ctx){
     const proc = ctx.createScriptProcessor(1024,2,2);
     let phasorL=0, phasorR=0;
     proc.bits = 16; // 16..4
-    proc.reduction = 1; // integer samples to hold (1=no downsample)
+    proc.reduction = 1; // 1..21
     proc.onaudioprocess = e => {
       const il=e.inputBuffer, ol=e.outputBuffer;
       const lIn=il.getChannelData(0), rIn=il.numberOfChannels>1?il.getChannelData(1):lIn;
       const lOut=ol.getChannelData(0), rOut=ol.getChannelData(1);
-      const step = Math.pow(0.5, proc.bits); // quantization step
+      const step = Math.pow(0.5, proc.bits);
       for(let i=0;i<lIn.length;i++){
         if(phasorL++ % proc.reduction === 0){ this.sampleL = Math.round(lIn[i]/step)*step; }
         if(phasorR++ % proc.reduction === 0){ this.sampleR = Math.round(rIn[i]/step)*step; }
         lOut[i]=this.sampleL||0; rOut[i]=this.sampleR||0;
       }
     };
-    // helper to map 0..1 mix into bits/reduction
     proc.setFromMix = mix => {
       const mm = clamp(mix,0,1);
-      const bits = Math.round(16 - 12*mm); // 16..4
-      const red  = Math.max(1, Math.round(1 + 20*mm)); // 1..21
+      const bits = Math.round(16 - 12*mm);
+      const red  = Math.max(1, Math.round(1 + 20*mm));
       proc.bits = bits; proc.reduction = red;
     };
     return proc;
@@ -470,16 +481,14 @@
 
   function voiceOut(){
     const g=new GainNode(ctx,{gain:0});
-    // Sends
     g.connect(busDry);
     const d=new GainNode(ctx,{gain:1}); const r=new GainNode(ctx,{gain:1}); const c=new GainNode(ctx,{gain:1}); const p=new GainNode(ctx,{gain:1}); const bcs=new GainNode(ctx,{gain:1});
     g.connect(d).connect(delay); g.connect(r).connect(rev); g.connect(c).connect(chorus); g.connect(p).connect(ap1).connect(ap2).connect(ap3).connect(ap4); g.connect(bcs).connect(bcSend).connect(bcNode);
-    return g; // envelope is applied on g.gain
+    return g;
   }
   function envGain(target,t,dur,a=0.004,d=0.06,s=0.35,vel=1){ const peak=0.9*vel; target.cancelScheduledValues(t); target.setValueAtTime(0.0001,t); target.linearRampToValueAtTime(peak,t+a); target.linearRampToValueAtTime(peak*s,t+a+d); target.linearRampToValueAtTime(0.0001,t+dur); }
   function humanize(t,baseGain){ const ms=parseFloat(humMs.value), vel=parseFloat(humVel.value); return { t: t + ((rng()*2-1)*(ms/1000)), g: clamp(baseGain + (rng()*2-1)*vel, 0.0001, 2.0) } }
 
-  // --- Lead Voices ---
   function playLeadFreq(freq, time, gate){
     const type=leadInst.value;
     const trim = INST_TRIM[type] ?? 1.0;
@@ -525,7 +534,6 @@
       car.start(t); lfo1.start(t); lfo2.start(t); car.stop(t+gate+0.2); lfo1.stop(t+gate+0.2); lfo2.stop(t+gate+0.2); return;
     }
     if(type==='pwm'){
-      // Approximate PWM: square with slow duty-like tone motion via narrow bandpass sweep
       const sq=new OscillatorNode(ctx,{type:'square',frequency:freq});
       const bp=new BiquadFilterNode(ctx,{type:'bandpass',frequency:freq*1.5,Q:8});
       const lfo=new OscillatorNode(ctx,{type:'sine',frequency:2}); const depth=new GainNode(ctx,{gain:freq*0.6});
@@ -534,7 +542,6 @@
       sq.start(t); lfo.start(t); sq.stop(t+gate+0.2); lfo.stop(t+gate+0.2); return;
     }
     if(type==='hollow'){
-      // Saw + lowpass + a touch of noise — reed-ish
       const saw=new OscillatorNode(ctx,{type:'sawtooth',frequency:freq});
       const lp=new BiquadFilterNode(ctx,{type:'lowpass',frequency:1600,Q:0.8});
       const noise=ctx.createBufferSource(); const nb=ctx.createBuffer(1,ctx.sampleRate*gate,ctx.sampleRate); const nd=nb.getChannelData(0); for(let i=0;i<nd.length;i++) nd[i]=rng()*2-1; noise.buffer=nb; const hp=new BiquadFilterNode(ctx,{type:'highpass',frequency:1500}); const ng=new GainNode(ctx,{gain:0.06});
@@ -542,13 +549,11 @@
       saw.start(t); noise.start(t); saw.stop(t+gate+0.2); noise.stop(t+Math.min(0.12,gate)); return;
     }
     if(type==='chipPulse'){
-      // Nostalgic: square + tiny vibrato; pair well with Bitcrush send
       const sq=new OscillatorNode(ctx,{type:'square',frequency:freq});
-      const vib=new OscillatorNode(ctx,{type:'sine',frequency:7}); const depth=new GainNode(ctx,{gain:18}); // cents
+      const vib=new OscillatorNode(ctx,{type:'sine',frequency:7}); const depth=new GainNode(ctx,{gain:18});
       vib.connect(depth).connect(sq.detune);
       sq.connect(out); sq.start(t); vib.start(t); sq.stop(t+gate+0.2); vib.stop(t+gate+0.2); return;
     }
-    // default basic
     const o=new OscillatorNode(ctx,{type:type,frequency:freq}); o.connect(out); o.start(t); o.stop(t+gate+0.1);
   }
   function voicingOffsets(){ const v=voicingSel.value; if(v==='uni')return [0]; if(v==='oct')return [0,12]; if(v==='thr')return [0,4]; if(v==='fif')return [0,7]; if(v==='six')return [0,9]; if(v==='triad')return [0,4,7]; return [0]; }
@@ -557,18 +562,7 @@
   function padVoicingIntervals(){ const v=padVoicing.value; if(v==='triad')return [0,4,7]; if(v==='7th')return [0,4,7,11]; if(v==='sus2')return [0,2,7]; if(v==='sus4')return [0,5,7]; return [0,4,7]; }
   function degreeToSemitone(deg){ const sc=scales[scaleSel.value]; const root=parseInt(rootSel.value); const oct=parseInt(octNum.value); const rel=sc[(deg-1)%sc.length]; const base=12*(oct+1)+root; return base+rel; }
   function padChordForBar(barIndex){ let prog=padProg.value; if(prog==='random'){ const keys=Object.keys(progressions); prog=pick(keys,rng); } const seq=progressions[prog]||[1,5,6,4]; const barsPerChord=parseInt(padLen.value)/4; const chordIdx=Math.floor((barIndex)/barsPerChord)%seq.length; const deg=seq[chordIdx]; const root=degreeToSemitone(deg); const ints=padVoicingIntervals(); return ints.map(i=>root+i); }
-  function playPadChord(midiList, time, beatLen){ const vol=parseFloat(padVol.value); const dur=beatLen*parseInt(padLen.value); midiList.forEach((m,i)=>{ const out=voiceOut(); const {t,g}=humanize(time, vol*(i===0?0.9:0.7)); envGain(out.gain,t,dur,0.06,0.5,0.8,g); const inst=padInst.value; if(inst==='organ'){ const o=new OscillatorNode(ctx,{type:'square',frequency:midiToFreq(m)}); o.connect(out); o.start(t); o.stop(t+dur+0.2); } else if(inst==='strings'){ const o1=new OscillatorNode(ctx,{type:'sawtooth',frequency:midiToFreq(m)}); const o2=new OscillatorNode(ctx,{type:'sawtooth',frequency:midiToFreq(m)}); o2.detune.value=6; o1.connect(out); o2.connect(out); o1.start(t); o2.start(t); o1.stop(t+dur+0.2); o2.stop(t+dur+0.2); } else if(inst==='choir') { // formant/choir: two sweeping formants in parallel
-        const src=new OscillatorNode(ctx,{type:'sawtooth',frequency:midiToFreq(m)});
-        const bp1=new BiquadFilterNode(ctx,{type:'bandpass',frequency:900,Q:6});
-        const bp2=new BiquadFilterNode(ctx,{type:'bandpass',frequency:1500,Q:6});
-        const l1=new OscillatorNode(ctx,{type:'sine',frequency:0.23}); const d1=new GainNode(ctx,{gain:400});
-        const l2=new OscillatorNode(ctx,{type:'sine',frequency:0.19}); const d2=new GainNode(ctx,{gain:600});
-        l1.connect(d1).connect(bp1.frequency); l2.connect(d2).connect(bp2.frequency);
-        const lp=new BiquadFilterNode(ctx,{type:'lowpass',frequency:3000,Q:0.3});
-        const gsum=new GainNode(ctx,{gain:1/Math.sqrt(2)});
-        src.connect(bp1).connect(gsum); src.connect(bp2).connect(gsum); gsum.connect(lp).connect(out);
-        src.start(t); l1.start(t); l2.start(t); src.stop(t+dur+0.2); l1.stop(t+dur+0.2); l2.stop(t+dur+0.2);
-      } else { const o=new OscillatorNode(ctx,{type:'triangle',frequency:midiToFreq(m)}); const lp=new BiquadFilterNode(ctx,{type:'lowpass',frequency:1800,Q:0.5}); o.connect(lp).connect(out); o.start(t); o.stop(t+dur+0.2); } }); }
+  function playPadChord(midiList, time, beatLen){ const vol=parseFloat(padVol.value); const dur=beatLen*parseInt(padLen.value); midiList.forEach((m,i)=>{ const out=voiceOut(); const {t,g}=humanize(time, vol*(i===0?0.9:0.7)); envGain(out.gain,t,dur,0.06,0.5,0.8,g); const inst=padInst.value; if(inst==='organ'){ const o=new OscillatorNode(ctx,{type:'square',frequency:midiToFreq(m)}); o.connect(out); o.start(t); o.stop(t+dur+0.2); } else if(inst==='strings'){ const o1=new OscillatorNode(ctx,{type:'sawtooth',frequency:midiToFreq(m)}); const o2=new OscillatorNode(ctx,{type:'sawtooth',frequency:midiToFreq(m)}); o2.detune.value=6; o1.connect(out); o2.connect(out); o1.start(t); o2.start(t); o1.stop(t+dur+0.2); o2.stop(t+dur+0.2); } else if(inst==='choir') { const src=new OscillatorNode(ctx,{type:'sawtooth',frequency:midiToFreq(m)}); const bp1=new BiquadFilterNode(ctx,{type:'bandpass',frequency:900,Q:6}); const bp2=new BiquadFilterNode(ctx,{type:'bandpass',frequency:1500,Q:6}); const l1=new OscillatorNode(ctx,{type:'sine',frequency:0.23}); const d1=new GainNode(ctx,{gain:400}); const l2=new OscillatorNode(ctx,{type:'sine',frequency:0.19}); const d2=new GainNode(ctx,{gain:600}); l1.connect(d1).connect(bp1.frequency); l2.connect(d2).connect(bp2.frequency); const lp=new BiquadFilterNode(ctx,{type:'lowpass',frequency:3000,Q:0.3}); const gsum=new GainNode(ctx,{gain:1/Math.sqrt(2)}); src.connect(bp1).connect(gsum); src.connect(bp2).connect(gsum); gsum.connect(lp).connect(out); src.start(t); l1.start(t); l2.start(t); src.stop(t+dur+0.2); l1.stop(t+dur+0.2); l2.stop(t+dur+0.2); } else { const o=new OscillatorNode(ctx,{type:'triangle',frequency:midiToFreq(m)}); const lp=new BiquadFilterNode(ctx,{type:'lowpass',frequency:1800,Q:0.5}); o.connect(lp).connect(out); o.start(t); o.stop(t+dur+0.2); } }); }
 
   function playBass(midi, time, gate){ const vol=parseFloat(bassVol.value); const {t,g}=humanize(time, vol); const inst=bassInst.value; const out=voiceOut(); envGain(out.gain,t,Math.max(0.1,gate),0.002,0.04,0.5,g);
     if(inst==='sub'){ const o=new OscillatorNode(ctx,{type:'sine',frequency:midiToFreq(midi)}); o.connect(out); o.start(t); o.stop(t+gate+0.1); return; }
@@ -599,14 +593,17 @@
 
   function buildScale(){ const root=parseInt(rootSel.value), oct=parseInt(octNum.value); const sc=scales[scaleSel.value]; const base=12*(oct+1)+root; return sc.map(s=>base+s); }
   function randomDrums(){ for(let i=0;i<steps;i++){ drums.kick[i]=(i%4===0)||rng()<0.12; drums.snr[i]=(i%8===4)|| (rng()<0.08 && i%4!==0); drums.hat[i]=rng()<0.55; drums.prc[i]=rng()<0.22 && i%4!==0; } renderGrids(); }
-  function randomMel(){ const dens=parseFloat(melDen.value); const range=parseInt(melRange.value); const scBase=buildScale(); const sc=[]; for(let o=-1;o<=1;o++) sc.push(...scBase.map(n=>n+12*o)); let any=false; for(let i=0;i<steps;i++){ const on=rng() < dens * ((i%4===0)?1.1:0.9); if(!on){ melody[i]=null; continue; } const idx=clamp(Math.floor(rng()*sc.length + (rng()-0.5)*range),0,sc.length-1); melody[i]=sc[idx]; any=true; } if(!any) melody[0]=scBase[0]; }
-  function randomBass(){ const dens=parseFloat(bassDen.value); const root=parseInt(rootSel.value); const sc=scales[scaleSel.value]; const oct=parseInt(bassOct.value); const base=12*(oct+1)+root; const scaleMIDIs=sc.map(s=>base+s); for(let i=0;i<steps;i++){ const strong=(i%4===0); const on=rng()< (strong? dens*1.2 : dens*0.8); if(on){ const choice=pick([0,3,4,5],rng); const m=scaleMIDIs[(choice)%scaleMIDIs.length]; bass[i]=m; } else bass[i]=null; } }
+  function clearDrums(){ Object.values(drums).forEach(r=>r.fill(false)); renderGrids(); }
+  function randomMel(){ const dens=parseFloat(melDen.value); const range=parseInt(melRange.value); const scBase=buildScale(); const sc=[]; for(let o=-1;o<=1;o++) sc.push(...scBase.map(n=>n+12*o)); let any=false; for(let i=0;i<steps;i++){ const on=rng() < dens * ((i%4===0)?1.1:0.9); if(!on){ melody[i]=null; continue; } const idx=clamp(Math.floor(rng()*sc.length + (rng()-0.5)*range),0,sc.length-1); melody[i]=sc[idx]; any=true; } if(!any) melody[0]=scBase[0]; renderGrids(); }
+  function clearMel(){ melody.fill(null); extra.forEach(a=>a.length=0); renderGrids(); }
+  function randomBass(){ const dens=parseFloat(bassDen.value); const root=parseInt(rootSel.value); const sc=scales[scaleSel.value]; const oct=parseInt(bassOct.value); const base=12*(oct+1)+root; const scaleMIDIs=sc.map(s=>base+s); for(let i=0;i<steps;i++){ const strong=(i%4===0); const on=rng()< (strong? dens*1.2 : dens*0.8); if(on){ const choice=pick([0,3,4,5],rng); const m=scaleMIDIs[(choice)%scaleMIDIs.length]; bass[i]=m; } else bass[i]=null; } renderGrids(); }
+  function clearBass(){ bass.fill(null); renderGrids(); }
   function randomizeDrumTypes(){ const pickSel=(sel)=>{ const opts=[...sel.options]; sel.value=opts[Math.floor(rng()*opts.length)].value; }; pickSel(drumCtrl.kick.type); pickSel(drumCtrl.snr.type); pickSel(drumCtrl.hat.type); pickSel(drumCtrl.prc.type); }
   function randomizeChords(){ if(padProg.value==='random'){ return; } const keys=Object.keys(progressions); padProg.value=pick(keys,rng); }
   function randomizeKeyScale(){ rootSel.value=Math.floor(rng()*12); const keys=Object.keys(scales); scaleSel.value=pick(keys,rng); }
   function randomizeVoicing(){ const opts=[...voicingSel.options].map(o=>o.value); let next=pick(opts,rng); if(next===voicingSel.value && opts.length>1){ next=opts[(opts.indexOf(next)+1)%opts.length]; } voicingSel.value=next; }
   function randomizeTempo(){ const delta=parseInt(autoTempoDelta.value)||8; const cur=parseInt(bpm.value); const low=clamp(cur-delta,40,200); const high=clamp(cur+delta,40,200); let next=Math.floor(low + rng()*(high-low+1)); if(next===cur){ next = clamp(cur + (rng()<0.5?-1:1)*Math.ceil(delta/2), 40, 200); } bpm.value=String(next); bpmVal.textContent=bpm.value; }
-  function doAutoChange(){ if(autoKeyScale && autoKeyScale.checked) randomizeKeyScale(); if(autoMel && autoMel.checked) randomMel(); if(autoDrums && autoDrums.checked) randomDrums(); if(autoBass && autoBass.checked) randomBass(); if(autoChords && autoChords.checked) randomizeChords(); if(autoKit && autoKit.checked) randomizeDrumTypes(); if(autoInst && autoInst.checked) switchInstrument('random'); if(autoVoicing && autoVoicing.checked) randomizeVoicing(); if(autoTempo && autoTempo.checked) randomizeTempo(); renderGrids(); }
+  function doAutoChange(){ if(autoKeyScale && autoKeyScale.checked) randomizeKeyScale(); if(autoMel && autoMel.checked) randomMel(); if(autoDrums && autoDrums.checked) randomDrums(); if(autoBass && autoBass.checked) randomBass(); if(autoChords && autoChords.checked) randomizeChords(); if(autoKit && autoKit.checked) randomizeDrumTypes(); if(autoInst && autoInst.checked) switchInstrument('random'); if(autoVoicing && autoVoicing.checked) randomizeVoicing(); if(autoTempo && autoTempo.checked) randomizeTempo(); }
   function updateAutoStatus(){ if(!autoStatus) return; if(hold){ autoStatus.textContent='Holding'; return; } if(!autoOn || !autoOn.checked){ autoStatus.textContent='Off'; return; } const interval=parseInt(autoMeasures.value)||4; const left = interval - (measureCount % interval || interval); autoStatus.textContent = `Next in ${left} bar${left>1?'s':''}`; }
 
   function toggleHold(){ hold = !hold; if(hold){ autoOn.checked=false; holdBtn.textContent='▶️ Resume Randomizer'; autoStatus.textContent='Holding'; } else { autoOn.checked=true; holdBtn.textContent='⏸️ Hold Pattern'; updateAutoStatus(); } }
@@ -623,10 +620,10 @@
   function mergeFloat32(buffers){ let length=0; for(const b of buffers){ length+=b.length; } const out=new Float32Array(length); let o=0; for(const b of buffers){ out.set(b,o); o+=b.length; } return out; }
   function floatTo16PCM(float32){ const out=new DataView(new ArrayBuffer(float32.length*2)); let offset=0; for(let i=0;i<float32.length;i++){ let s=Math.max(-1,Math.min(1,float32[i])); out.setInt16(offset, s<0 ? s*0x8000 : s*0x7FFF, true); offset+=2; } return out; }
   function interleave(l,r){ const out=new Float32Array(l.length+r.length); for(let i=0,j=0;i<l.length||j<r.length;i++,j++){ out[i+j]=l[i]||0; out[i+j+1]=r[j]||0; } return out; }
-  function encodeWAVFromBuffers(bufsL, bufsR, sampleRate){ const left=mergeFloat32(bufsL), right=mergeFloat32(bufsR); const inter = interleave(left,right); const pcm = floatTo16PCM(inter); const wavHeader = new DataView(new ArrayBuffer(44)); const numChannels=2; const bytesPerSample=2; const blockAlign=numChannels*bytesPerSample; const byteRate=sampleRate*blockAlign; const dataSize=pcm.byteLength; writeString(wavHeader,0,'RIFF'); wavHeader.setUint32(4, 36 + dataSize, true); writeString(wavHeader,8,'WAVE'); writeString(wavHeader,12,'fmt '); wavHeader.setUint32(16,16,true); wavHeader.setUint16(20,1,true); wavHeader.setUint16(22,numChannels,true); wavHeader.setUint32(24,sampleRate,true); wavHeader.setUint32(28,byteRate,true); wavHeader.setUint16(32,blockAlign,true); wavHeader.setUint16(34,bytesPerSample*8,true); writeString(wavHeader,36,'data'); wavHeader.setUint32(40,dataSize,true); const wavBuffer = new Uint8Array(44 + dataSize); wavBuffer.set(new Uint8Array(wavHeader.buffer),0); wavBuffer.set(new Uint8Array(pcm.buffer),44); return new Blob([wavBuffer],{type:'audio/wav'}); }
+  function encodeWAVFromBuffers(bufsL, bufsR, sampleRate){ const left=mergeFloat32(bufersSafe(bufsL)), right=mergeFloat32(bufersSafe(bufsR)); const inter = interleave(left,right); const pcm = floatTo16PCM(inter); const wavHeader = new DataView(new ArrayBuffer(44)); const numChannels=2; const bytesPerSample=2; const blockAlign=numChannels*bytesPerSample; const byteRate=sampleRate*blockAlign; const dataSize=pcm.byteLength; writeString(wavHeader,0,'RIFF'); wavHeader.setUint32(4, 36 + dataSize, true); writeString(wavHeader,8,'WAVE'); writeString(wavHeader,12,'fmt '); wavHeader.setUint32(16,16,true); wavHeader.setUint16(20,1,true); wavHeader.setUint16(22,numChannels,true); wavHeader.setUint32(24,sampleRate,true); wavHeader.setUint32(28,byteRate,true); wavHeader.setUint16(32,blockAlign,true); wavHeader.setUint16(34,bytesPerSample*8,true); writeString(wavHeader,36,'data'); wavHeader.setUint32(40,dataSize,true); const wavBuffer = new Uint8Array(44 + dataSize); wavBuffer.set(new Uint8Array(wavHeader.buffer),0); wavBuffer.set(new Uint8Array(pcm.buffer),44); return new Blob([wavBuffer],{type:'audio/wav'}); }
+  function bufersSafe(arr){ return Array.isArray(arr)?arr:[] }
   function writeString(dv,offset,str){ for(let i=0;i<str.length;i++){ dv.setUint8(offset+i, str.charCodeAt(i)); } }
 
-  // UI bindings & live updates
   bpm.oninput=()=>{bpmVal.textContent=bpm.value}; swing.oninput=()=>{swingVal.textContent=swing.value}; humMs.oninput=()=>{humMsVal.textContent=humMs.value}; humVel.oninput=()=>{humVelVal.textContent=parseFloat(humVel.value).toFixed(2)};
   master.oninput=()=>{ if(masterG) masterG.gain.value=parseFloat(master.value); masterVal.textContent=parseFloat(master.value).toFixed(2)};
   dlyMix.oninput=()=>{ if(dlyGain) dlyGain.gain.value=parseFloat(dlyMix.value); dlyMixVal.textContent=parseFloat(dlyMix.value).toFixed(2)};
@@ -641,10 +638,18 @@
   bassVol.oninput=()=>{ bassVolVal.textContent=parseFloat(bassVol.value).toFixed(2)}; bassDen.oninput=()=>{ bassDenVal.textContent=parseFloat(bassDen.value).toFixed(2)};
   autoTempoDelta.oninput=()=>{ autoTempoDeltaVal.textContent='±'+autoTempoDelta.value };
 
-  $('drmRnd').onclick=()=>randomDrums(); $('drmClr').onclick=()=>{ Object.values(drums).forEach(r=>r.fill(false)); renderGrids(); };
-  $('melRnd').onclick=()=>{ randomMel(); renderGrids(); }; $('melClr').onclick=()=>{ melody.fill(null); extra.forEach(a=>a.length=0); renderGrids(); };
+  $('drmRnd').onclick=()=>randomDrums(); $('drmClr').onclick=()=>clearDrums();
+  $('melRnd').onclick=()=>randomMel(); $('melClr').onclick=()=>clearMel();
   $('melRepeat').onclick=()=>{ repeatOn=!repeatOn; $('repeatState').textContent= repeatOn? 'On':'One-shot'; };
-  bassRnd.onclick=()=>randomBass();
+  bassRnd.onclick=()=>randomBass(); bassClr.onclick=()=>clearBass();
+
+  // Bind new Quick Actions under Randomizer
+  qaRndDrums.onclick=()=>randomDrums();
+  qaClrDrums.onclick=()=>clearDrums();
+  qaRndMel.onclick=()=>randomMel();
+  qaClrMel.onclick=()=>clearMel();
+  qaRndBass.onclick=()=>randomBass();
+  qaClrBass.onclick=()=>clearBass();
 
   $('kbOct').oninput=()=>renderKeyboard();
 
@@ -658,11 +663,11 @@
   rndAll.onclick=()=>{ rootSel.value=Math.floor(rng()*12); scaleSel.value=pick(Object.keys(scales),rng); leadInst.value=pick(['sawtooth','sine','square','triangle','supersaw','pluck','fm','noise','piano','bell','organLead','flute','warble','pwm','hollow','chipPulse'],rng); octNum.value = String(3 + Math.floor(rng()*3)); bpm.value=90+Math.floor(rng()*80); bpmVal.textContent=bpm.value; randomDrums(); randomMel(); randomBass(); };
 
   applySeedBtn.onclick=()=>{ applySeedStr(seed.value.trim()); };
-  saveBtn.onclick=()=>{ const state=collectState(); const blob=new Blob([JSON.stringify(state,null,2)],{type:'application/json'}); const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download='random_music_studio_v7_1.json'; a.click(); };
+  saveBtn.onclick=()=>{ const state=collectState(); const blob=new Blob([JSON.stringify(state,null,2)],{type:'application/json'}); const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download='random_music_studio_v7_2.json'; a.click(); };
   loadBtn.onclick=()=>loadFile.click();
   loadFile.onchange=async(e)=>{ const f=e.target.files[0]; if(!f) return; const txt=await f.text(); const obj=JSON.parse(txt); restoreState(obj); };
-  saveLocal.onclick=()=>{ localStorage.setItem('random_studio_v7_1', JSON.stringify(collectState())); };
-  loadLocal.onclick=()=>{ const txt=localStorage.getItem('random_studio_v7_1'); if(txt){ restoreState(JSON.parse(txt)); } };
+  saveLocal.onclick=()=>{ localStorage.setItem('random_studio_v7_2', JSON.stringify(collectState())); };
+  loadLocal.onclick=()=>{ const txt=localStorage.getItem('random_studio_v7_2'); if(txt){ restoreState(JSON.parse(txt)); } };
 
   function collectState(){ return {
     bpm:bpm.value,swing:swing.value,humMs:humMs.value,humVel:humVel.value,master:master.value,
@@ -690,6 +695,9 @@
   function cycleInstrument(dir=1){ const idx=leadChoices.indexOf(leadInst.value); const next=(idx+dir+leadChoices.length)%leadChoices.length; leadInst.value=leadChoices[next]; }
   function switchInstrument(mode='cycle'){ if(mode==='random'){ leadInst.value=leadChoices[Math.floor(rng()*leadChoices.length)]; } else { cycleInstrument(); } }
 
+  function renderRootOptions(){ rootSel.innerHTML=''; noteNames.forEach((n,i)=>{ const o=document.createElement('option'); o.value=i; o.textContent=n; rootSel.appendChild(o); }); }
+
+  renderRootOptions();
   renderGrids(); renderKeyboard(); randomDrums(); randomMel(); randomBass();
   ['touchstart','pointerdown','keydown','mousedown'].forEach(ev=>window.addEventListener(ev, async()=>{ if(ctx && ctx.state==='suspended') await ctx.resume(); }, {passive:true}));
 })();
