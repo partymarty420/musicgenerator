@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width,initial-scale=1" />
-<title>Random Music Studio v7.7 — Party Marty</title>
+<title>Random Music Studio v7.7 — Party Martyr</title>
 <style>
   :root{ --bg:#0a0f14; --panel:#111827; --ink:#e6edf3; --muted:#9fb0c3; --accent:#7dd3fc; --accent2:#a78bfa; --good:#86efac; --warn:#fbbf24 }
   *{box-sizing:border-box}
@@ -62,7 +62,7 @@
 </head>
 <body>
 <header>
-  <h1>🎹 Random Music Studio v7.7 • Party Marty</h1>
+  <h1>🎹 Random Music Studio v7.7 — Party Marty</h1>
 </header>
 <main>
   <section class="panel controls">
@@ -83,6 +83,7 @@
       <button id="tRndMel">🎲 Mel</button>
       <button id="tClrMel">🧹 Mel</button>
       <button id="tRndBass">🎲 Bs</button>
+            <button id="tNextBass">🎛️ Bs</button>
       <button id="tClrBass">🧹 Bs</button>
     </div>
 
@@ -103,7 +104,15 @@
 
     <!-- Randomizer -->
     <fieldset>
-      <legend>Randomizer (Auto-Change)</legend>
+      \1
+  <div class="row">
+    <label class="mutetext">
+      <input id="autoLastBarImprov" type="checkbox"/>
+      randomize last bar
+    </label>
+    <span class="mutetext">Improvise melody + bass for 1 bar before the main change</span>
+  </div>
+
       <div class="row">
         <label>Enable</label><input id="autoOn" type="checkbox"/>
         <label>Change every</label>
@@ -118,7 +127,10 @@
         <label class="mutetext"><input id="autoInst" type="checkbox"/> Lead instrument</label>
         <label class="mutetext"><input id="autoVoicing" type="checkbox"/> Voicing</label>
         <label class="mutetext"><input id="autoKeyScale" type="checkbox"/> Key/Scale</label>
-      </div>
+      
+        <label class="mutetext"><input id="autoMelB" type="checkbox"/> Lead B</label>
+        <label class="mutetext"><input id="autoDrums2" type="checkbox"/> Drums 2</label>
+</div>
       <div class="row">
         <label class="mutetext"><input id="autoTempo" type="checkbox"/> Tempo</label>
         <label>Δ BPM ±</label><input id="autoTempoDelta" type="range" min="2" max="30" step="1" value="8"/><span id="autoTempoDeltaVal" class="pill">±8</span>
@@ -149,11 +161,19 @@
       <div class="row">
         <label>Δ Gate ±</label><input id="autoGateDelta" type="range" min="0.01" max="0.4" step="0.01" value="0.10"/><span id="autoGateDeltaVal" class="pill">±0.10</span>
       </div>
+      <div class="row">
+        <label class="mutetext"><input id="autoEnvNudge" type="checkbox"/> Envelope nudge</label>
+        <span class="mutetext">Small jitters to cutoff & ADSR</span>
+      </div>
+      <div class="row">
+        <label class="mutetext"><input id="envEnable" type="checkbox" checked/> Envelope enabled</label>
+      </div>
 
       <!-- Switch Instrument / Hold Pattern -->
       <div class="row">
         <label></label>
         <button id="nextInst">🎛️ Switch Instrument</button>
+                <button id="nextBass">🎛️ Switch Bass</button>
         <button id="holdBtn">⏸️ Hold Pattern</button>
       </div>
 
@@ -174,8 +194,20 @@
       <div class="row">
         <label></label>
         <button id="qaRndBass">🎲 Randomize Bass</button>
+                <button id="qaNextBass">🎛️ Switch Bass</button>
         <button id="qaClrBass">🧹 Clear Bass</button>
       </div>
+      <div class="row">
+        <label></label>
+        <button id="qaRndMelB">🎲 Randomize Lead B</button>
+        <button id="qaClrMelB">🧹 Clear Lead B</button>
+      </div>
+      <div class="row">
+        <label></label>
+        <button id="qaRndDrums2b">🎲 Randomize Drums 2</button>
+        <button id="qaClrDrums2b">🧹 Clear Drums 2</button>
+      </div>
+    
 
       <div class="row">
         <label>Layers</label>
@@ -193,7 +225,18 @@
       </div>
       <div class="row">
         <label>Scale</label>
-        <select id="scale"><option value="major">Major</option><option value="minor">Natural Minor</option><option value="pent_major">Pentatonic Major</option><option value="pent_minor">Pentatonic Minor</option><option value="dorian">Dorian</option><option value="mixolydian">Mixolydian</option></select>
+        <select id="scale"><option value="ionian">Ionian (Major)</option>
+  <option value="dorian">Dorian</option>
+  <option value="phrygian">Phrygian</option>
+  <option value="lydian">Lydian</option>
+  <option value="mixolydian">Mixolydian</option>
+  <option value="aeolian">Aeolian (Natural Minor)</option>
+  <option value="locrian">Locrian</option>
+  <option value="pent_major">Pentatonic Major</option>
+  <option value="pent_minor">Pentatonic Minor</option>
+  <!-- legacy labels for older sessions -->
+  <option value="major">Major (Ionian)</option>
+  <option value="minor">Natural Minor (Aeolian)</option></select>
       </div>
       <div class="row">
         <label>Octave</label>
@@ -272,6 +315,35 @@
         <label>Gate</label><input id="leadGate" type="range" min="0.05" max="0.9" step="0.01" value="0.35"/><span id="leadGateVal" class="pill">0.35</span>
       </div>
     </fieldset>
+    <!-- Lead Synth B -->
+    <fieldset>
+      <legend>Lead Synth B</legend>
+      <div class="row">
+        <label>Enable</label><input id="leadBOn" type="checkbox"/>
+      </div>
+      <div class="row">
+        <label>Instrument</label>
+        <select id="leadBInst"><option>(copying…)</option></select>
+      </div>
+      <div class="row">
+        <label>Vol</label><input id="leadBVol" type="range" min="0" max="1.2" step="0.01" value="0.75"/><span id="leadBVolVal" class="pill">0.75</span>
+      </div>
+      <div class="row">
+        <label>Octave</label>
+        <select id="leadBOct"><option value="-2">-2</option><option value="-1">-1</option><option value="0" selected>0</option><option value="1">+1</option><option value="2">+2</option></select>
+      </div>
+      <div class="row">
+        <label>Mode</label>
+        <select id="leadBMode"><option value="pattern" selected>Pattern</option><option value="arpUp">Arp Up</option><option value="arpDown">Arp Down</option><option value="arpRand">Arp Random</option></select>
+      </div>
+      <div class="row">
+        <label></label>
+        <button id="melBRnd">🎲 Randomize Lead B</button>
+        <button id="melBClr">🧹 Clear</button>
+        <button id="melBRepeat" class="good">🔁 Toggle Repeat</button><span id="repeatBState" class="pill small">On</span>
+      </div>
+    </fieldset>
+
 
     <!-- Bassline -->
     <fieldset>
@@ -296,6 +368,22 @@
         <button id="bassClr">🧹 Clear</button>
       </div>
     </fieldset>
+    <!-- Drums 2 (Aux Track) -->
+    <fieldset>
+      <legend>Drums 2</legend>
+      <div class="row">
+        <label>Enable</label><input id="drums2On" type="checkbox"/>
+      </div>
+      <div class="row">
+        <label></label>
+        <button id="qaRndDrums2">🎲 Randomize Drums 2</button>
+        <button id="qaClrDrums2">🧹 Clear Drums 2</button>
+      </div>
+      <div class="row">
+        <span class="mutetext">Uses current drum kit settings.</span>
+      </div>
+    </fieldset>
+
 
     <!-- Pads -->
     <fieldset>
@@ -439,7 +527,24 @@
 <script>
 (function(){
   const noteNames=["C","C#","D","D#","E","F","F#","G","G#","A","A#","B"];
-  const scales={ major:[0,2,4,5,7,9,11], minor:[0,2,3,5,7,8,10], pent_major:[0,2,4,7,9], pent_minor:[0,3,5,7,10], dorian:[0,2,3,5,7,9,10], mixolydian:[0,2,4,5,7,9,10] };
+  const scales = {
+  // Canonical modes
+  ionian:     [0,2,4,5,7,9,11],
+  dorian:     [0,2,3,5,7,9,10],
+  phrygian:   [0,1,3,5,7,8,10],
+  lydian:     [0,2,4,6,7,9,11],
+  mixolydian: [0,2,4,5,7,9,10],
+  aeolian:    [0,2,3,5,7,8,10],
+  locrian:    [0,1,3,5,6,8,10],
+
+  // Legacy aliases for compatibility
+  major: [0,2,4,5,7,9,11],       // Ionian
+  minor: [0,2,3,5,7,8,10],       // Aeolian
+
+  // Pentatonics (kept from original)
+  pent_major: [0,2,4,7,9],
+  pent_minor: [0,3,5,7,10]
+};
 
   // Loudness trims per instrument
   const INST_TRIM = { supersaw:0.38, organLead:0.65, square:0.85, sawtooth:0.90, fm:0.90, pluck:0.85, bell:0.75, piano:0.80, noise:0.55, sine:0.70, triangle:0.90, flute:0.85, warble:0.85, pwm:1.05, hollow:0.85, chipPulse:0.80 };
@@ -577,23 +682,86 @@
   }
 
   function voiceOut(){
-    const g=new GainNode(ctx,{gain:0});
-    const dc=new BiquadFilterNode(ctx,{type:'highpass',frequency:12});
-    g.connect(dc);
-    dc.connect(busDry);
-    const d=new GainNode(ctx,{gain:1}); const r=new GainNode(ctx,{gain:1}); const c=new GainNode(ctx,{gain:1}); const p=new GainNode(ctx,{gain:1}); const bcs=new GainNode(ctx,{gain:1});
-    dc.connect(d).connect(delay); dc.connect(r).connect(rev); dc.connect(c).connect(chorus); dc.connect(p).connect(ap1).connect(ap2).connect(ap3).connect(ap4); dc.connect(bcs).connect(bcSend);
-    return g;
+  const g = new GainNode(ctx,{gain:0});
+  // tag the amp node so envGain can find our filter
+  g.gain._owner = g;
+
+  // Pre-drive stage (optional)
+  const driveOn = !!document.getElementById('fDrive')?.checked;
+  const pre = new GainNode(ctx,{gain: driveOn ? 2.0 : 1.0});
+
+  // Per-voice filter (envelope-controlled)
+  const filt = new BiquadFilterNode(ctx,{
+    type: (document.getElementById('fType')?.value || 'lowpass'),
+    frequency: parseFloat(document.getElementById('fCut')?.value || '1800'),
+    Q: parseFloat(document.getElementById('fRes')?.value || '1.0')
+  });
+  g._filt = filt;
+
+  // DC safeguard before FX
+  const dc = new BiquadFilterNode(ctx,{type:'highpass', frequency:12});
+
+  // Connect: g -> (drive?) -> filter -> dc
+  if (driveOn){
+    const ws = new WaveShaperNode(ctx, {oversample:'4x'});
+    // soft clip curve
+    const n=1024, c=new Float32Array(n);
+    for (let i=0;i<n;i++){ const x=i*2/n-1; c[i] = Math.tanh(2.4*x); }
+    ws.curve = c;
+    g.connect(pre).connect(ws).connect(filt).connect(dc);
+  } else {
+    g.connect(pre).connect(filt).connect(dc);
   }
+
+  // Mirror original taps
+  dc.connect(busDry);
+  const d = new GainNode(ctx,{gain:1}); dc.connect(d).connect(delay);
+  const r = new GainNode(ctx,{gain:1}); dc.connect(r).connect(rev);
+  const c = new GainNode(ctx,{gain:1}); dc.connect(c).connect(chorus);
+  const p = new GainNode(ctx,{gain:1}); dc.connect(p).connect(ap1).connect(ap2).connect(ap3).connect(ap4);
+  const bcs= new GainNode(ctx,{gain:1}); dc.connect(bcs).connect(bcSend);
+  return g;
+}
   function envGain(target,t,dur,a=0.004,d=0.06,s=0.35,vel=1){
-    const peak=0.9*vel;
-    target.cancelScheduledValues(t-0.005);
-    target.setValueAtTime(0.0001, t-0.002);
-    target.linearRampToValueAtTime(peak, t+a);
-    target.setTargetAtTime(peak*s, t+a, d);
-    const relStart = t + Math.max(dur - 0.02, 0);
-    target.setTargetAtTime(0.0001, relStart, 0.015);
-  }
+  // Original amplitude envelope
+  const peak=0.9*vel;
+  target.cancelScheduledValues(t-0.005);
+  target.setValueAtTime(0.0001, t-0.002);
+  target.linearRampToValueAtTime(peak, t+a);
+  target.setTargetAtTime(peak*s, t+a, d);
+  const relStart = t + Math.max(dur - 0.02, 0);
+  target.setTargetAtTime(0.0001, relStart, 0.015);
+
+  // Filter envelope (if this is a lead voice with per-voice filter)
+  try{
+    const owner = target && target._owner;
+    const filt  = owner && owner._filt;
+    if (!filt) return;
+
+    const base = parseFloat(document.getElementById('fCut')?.value || '1800');
+    const amtSt = parseFloat(document.getElementById('fAmt')?.value || '12');
+    const A = parseFloat(document.getElementById('fA')?.value || '0.010');
+    const D = parseFloat(document.getElementById('fD')?.value || '0.120');
+    const S = parseFloat(document.getElementById('fS')?.value || '0.40');
+    const R = parseFloat(document.getElementById('fR')?.value || '0.120');
+    const Qv= parseFloat(document.getElementById('fRes')?.value || '1.0');
+    const typ= (document.getElementById('fType')?.value || 'lowpass');
+    filt.type = typ;
+    filt.Q.cancelScheduledValues(t-0.002);
+    filt.Q.setValueAtTime(Qv, t);
+
+    const ratio = Math.pow(2, amtSt/12);
+    const fpeak = base * ratio;
+    const fsus  = base * (1 + (ratio-1)*S);
+
+    const f = filt.frequency;
+    f.cancelScheduledValues(t-0.005);
+    f.setValueAtTime(base, t-0.002);
+    f.linearRampToValueAtTime(fpeak, t + A);
+    f.setTargetAtTime(fsus, t + A, Math.max(0.005, D));
+    f.setTargetAtTime(base, relStart, Math.max(0.01, R));
+  }catch(e){}
+}
   function humanize(t,baseGain){ const ms=parseFloat(humMs.value), vel=parseFloat(humVel.value); return { t: t + ((Math.random()*2-1)*(ms/1000)), g: clamp(baseGain + (Math.random()*2-1)*vel, 0.0001, 1.5) } }
 
   function playLeadFreq(freq, time, gate){
@@ -692,7 +860,41 @@
       if(drumsOn && drumsOn.checked){ if(drums.kick[current16]) drumKick(t); if(drums.snr[current16]) drumSnare(t); if(drums.hat[current16]) drumHat(t); if(drums.prc[current16]) drumPerc(t); }
       const gateLead=parseFloat(leadGate.value)*secPerBeat; const base=melody[current16]; if(leadOn.checked && base!==null){ playVoiced(base, t, gateLead); } const extras=extra[current16]; if(leadOn.checked && extras && extras.length){ extras.forEach(m=> playVoiced(m, t, gateLead)); }
       if(bassOn.checked){ const bnote=bass[current16]; if(bnote!==null){ playBass(bnote, t, gateLead*0.9); } }
-      if(padOn.checked){ const lenBeats=parseInt(padLen.value); if(current16===0){ const chord=padChordForBar(measureCount); playPadChord(chord, t, secPerBeat); } if(lenBeats===8 && current16===0 && (measureCount%2===1)){ const chord2=padChordForBar(measureCount); playPadChord(chord2, t, secPerBeat); } }
+      if(padOn.checked){ const lenBeats=parseInt(padLen.value); if(current16===0){
+// ==== Last-bar improv (melody + bass) feature ====
+try {
+  const nBars = parseInt(autoMeasures.value, 10);
+  const autoEnabled = autoOn.checked && !hold;
+  if (autoEnabled && nBars > 0) {
+    const atLastBar = ((measureCount + 1) % nBars) === 0;
+    if (autoLastBarImprov && autoLastBarImprov.checked && atLastBar && !improvActive) {
+      $('melRnd').click();
+      $('bassRnd').click();
+      improvActive = true;
+      if (typeof autoStatus !== 'undefined' && autoStatus) {
+        autoStatus.textContent = 'Last-bar improv…';
+      }
+    } else if ((measureCount % nBars) === 0) {
+      if (typeof autoMel !== 'undefined' && autoMel.checked) $('melRnd').click();
+      if (typeof autoBass !== 'undefined' && autoBass.checked) $('bassRnd').click();
+      if (typeof autoDrums !== 'undefined' && autoDrums.checked) $('drmRnd').click();
+      if (typeof autoKit !== 'undefined' && autoKit.checked && typeof switchKit === 'function') switchKit();
+      if (typeof autoInst !== 'undefined' && autoInst.checked) $('nextInst').click();
+      if (typeof autoChords !== 'undefined' && autoChords.checked && typeof randomizeChords === 'function') randomizeChords();
+      if (typeof autoVoicing !== 'undefined' && autoVoicing.checked && typeof randomizeVoicing === 'function') randomizeVoicing();
+      if (typeof autoKeyScale !== 'undefined' && autoKeyScale.checked && typeof randomizeKeyScale === 'function') randomizeKeyScale();
+      if (typeof autoTempo !== 'undefined' && autoTempo.checked && typeof jitterTempo === 'function') jitterTempo();
+      improvActive = false;
+      if (typeof autoStatus !== 'undefined' && autoStatus) {
+        autoStatus.textContent = 'Auto-change';
+      }
+    }
+  }
+} catch(e) {
+  console.warn('Last-bar improv guard:', e);
+}
+// ==== end feature ====
+ const chord=padChordForBar(measureCount); playPadChord(chord, t, secPerBeat); } if(lenBeats===8 && current16===0 && (measureCount%2===1)){ const chord2=padChordForBar(measureCount); playPadChord(chord2, t, secPerBeat); } }
       if(stepInBeat===0){ beatLED.classList.add('on'); setTimeout(()=>beatLED.classList.remove('on'), 60); }
       advance(); } }
   function advance(){ const spb=60/parseFloat(bpm.value); nextNoteTime += 0.25*spb; const wasEndOfBar=(current16===15); current16=(current16+1)%16; if(!repeatOn && current16===0){ melody.fill(null); extra.forEach(a=>a.length=0); }
@@ -856,6 +1058,493 @@
   renderGrids(); renderKeyboard(); randomDrums(); randomMel(); randomBass();
   ['touchstart','pointerdown','keydown','mousedown'].forEach(ev=>window.addEventListener(ev, async()=>{ if(ctx && ctx.state==='suspended') await ctx.resume(); }, {passive:true}));
 })();
+
+const autoLastBarImprov = $('autoLastBarImprov');
+let improvActive = false;
 </script>
+
+<!-- ENVELOPE FILTER CONTROLS + RUNTIME PATCH -->
+<script>
+(function(){
+  // ---------- UI INSERT ----------
+  function el(tag, attrs, ...kids){
+    const e = document.createElement(tag);
+    if (attrs) for (const [k,v] of Object.entries(attrs)){
+      if (k === 'text') e.textContent = v;
+      else e.setAttribute(k, v);
+    }
+    kids.flat().forEach(ch => ch && e.appendChild(ch));
+    return e;
+  }
+  function addEnvelopeUI(){
+    // Find the "Lead Synth" fieldset
+    const sets = Array.from(document.querySelectorAll('fieldset'));
+    const leadFs = sets.find(fs => /Lead\s*Synth/i.test(fs.querySelector('legend')?.textContent||''));
+    if (!leadFs) return;
+
+    // Row 1: Filter type / cutoff / resonance
+    const row1 = el('div', {class:'row'},
+      el('label', {text:'Filter'}),
+      (()=>{
+        const s = el('select', {id:'fType'});
+        ['lowpass','bandpass','highpass'].forEach(k=>{
+          const o=document.createElement('option'); o.value=k; o.textContent=k; s.appendChild(o);
+        });
+        return s;
+      })(),
+      el('label', {text:'Cutoff'}),
+      el('input', {id:'fCut', type:'range', min:'60', max:'12000', step:'1', value:'1800'}),
+      el('span', {id:'fCutVal', class:'pill', text:'1800 Hz'}),
+      el('label', {text:'Res(Q)'}),
+      el('input', {id:'fRes', type:'range', min:'0.2', max:'18', step:'0.1', value:'1.0'}),
+      el('span', {id:'fResVal', class:'pill', text:'1.0'}),
+    );
+
+    // Row 2: Env Amount + ADSR
+    const row2 = el('div', {class:'row'},
+      el('label', {text:'Env Amt (±st)'}),
+      el('input', {id:'fAmt', type:'range', min:'-24', max:'24', step:'1', value:'12'}),
+      el('span', {id:'fAmtVal', class:'pill', text:'+12 st'}),
+      el('label', {text:'A'}),
+      el('input', {id:'fA', type:'range', min:'0.001', max:'1.5', step:'0.001', value:'0.010'}),
+      el('span', {id:'fAVal', class:'pill', text:'0.010s'}),
+      el('label', {text:'D'}),
+      el('input', {id:'fD', type:'range', min:'0.005', max:'2.0', step:'0.001', value:'0.120'}),
+      el('span', {id:'fDVal', class:'pill', text:'0.120s'}),
+      el('label', {text:'S'}),
+      el('input', {id:'fS', type:'range', min:'0', max:'1', step:'0.01', value:'0.40'}),
+      el('span', {id:'fSVal', class:'pill', text:'0.40'}),
+      el('label', {text:'R'}),
+      el('input', {id:'fR', type:'range', min:'0.005', max:'2.0', step:'0.001', value:'0.120'}),
+      el('span', {id:'fRVal', class:'pill', text:'0.120s'}),
+    );
+
+    // Row 3: Drive
+    const row3 = el('div', {class:'row'},
+      el('label', {text:'Drive'}),
+      el('input', {id:'fDrive', type:'checkbox'}),
+      el('span', {id:'fDriveInfo', class:'pill small', text:'off'}),
+    );
+
+    // Add rows to Lead Synth fieldset
+    leadFs.appendChild(row1);
+    leadFs.appendChild(row2);
+    leadFs.appendChild(row3);
+
+    // Wiring label updates
+    const $ = id => document.getElementById(id);
+    function updNum(id, fmt){
+      const el = $(id), out = $(id+'Val');
+      if (!el || !out) return;
+      const fn = ()=> out.textContent = fmt ? fmt(el.value) : String(el.value);
+      el.addEventListener('input', fn); fn();
+    }
+    updNum('fCut', v=> Math.round(v)+' Hz');
+    updNum('fRes', v=> Number(v).toFixed(1));
+    updNum('fAmt', v=> (Number(v)>=0?'+':'')+Number(v)+' st');
+    ['fA','fD','fR'].forEach(id => updNum(id, v=> Number(v).toFixed(3)+'s'));
+    updNum('fS', v=> Number(v).toFixed(2));
+    const fDrive = $('fDrive'), fDriveInfo = $('fDriveInfo');
+    if (fDrive && fDriveInfo){
+      const fn = ()=> fDriveInfo.textContent = fDrive.checked ? 'on' : 'off';
+      fDrive.addEventListener('input', fn); fn();
+    }
+  }
+
+  // ---------- AUDIO GRAPH PATCH ----------
+  function patchAudio(){
+    // Original functions
+    const _voiceOut = window.voiceOut;
+    const _envGain  = window.envGain;
+    if (typeof _voiceOut !== 'function' || typeof _envGain !== 'function') return;
+
+    // Override voiceOut: insert (Drive) -> Filter before existing DC/FX taps
+    window.voiceOut = function(){
+      const g = new GainNode(ctx, {gain:0});
+      g.gain._owner = g; // tag so env can find our filter
+      // Pre drive
+      const pre = new GainNode(ctx, {gain: (document.getElementById('fDrive')?.checked ? 2.0 : 1.0)});
+      // Filter
+      const filt = new BiquadFilterNode(ctx, {
+        type: (document.getElementById('fType')?.value || 'lowpass'),
+        frequency: parseFloat(document.getElementById('fCut')?.value || '1800'),
+        Q: parseFloat(document.getElementById('fRes')?.value || '1.0'),
+      });
+      g._filt = filt;
+
+      // DC high-pass and FX taps (mirrors original voiceOut wiring)
+      const dc = new BiquadFilterNode(ctx, {type:'highpass', frequency:12});
+
+      // Optional soft clipper (waveshaper) when Drive enabled
+      const driveOn = !!document.getElementById('fDrive')?.checked;
+      if (driveOn){
+        const ws = new WaveShaperNode(ctx, {oversample:'4x'});
+        ws.curve = (function makeCurve(amount=2.4){
+          const n=1024, c=new Float32Array(n);
+          for (let i=0;i<n;i++){ const x=i*2/n-1; c[i] = Math.tanh(amount*x); }
+          return c;
+        })();
+        g.connect(pre).connect(ws).connect(filt).connect(dc);
+      } else {
+        g.connect(pre).connect(filt).connect(dc);
+      }
+
+      // taps to global FX (busDry, delay, rev, chorus, phaser chain ap1..ap4, bitcrush send)
+      dc.connect(busDry);
+      const d = new GainNode(ctx,{gain:1}); dc.connect(d).connect(delay);
+      const r = new GainNode(ctx,{gain:1}); dc.connect(r).connect(rev);
+      const c = new GainNode(ctx,{gain:1}); dc.connect(c).connect(chorus);
+      const p = new GainNode(ctx,{gain:1}); dc.connect(p).connect(ap1).connect(ap2).connect(ap3).connect(ap4);
+      const bcs = new GainNode(ctx,{gain:1}); dc.connect(bcs).connect(bcSend);
+
+      return g;
+    };
+
+    // Wrap envGain so it also schedules the FILTER envelope when present
+    window.envGain = function(target, t, dur, a, d, s, vel){
+      // keep original amp envelope
+      _envGain(target, t, dur, a, d, s, vel);
+
+      // drive filter envelope only for voices created via voiceOut() (we tagged owner)
+      try{
+        const owner = target && target._owner;
+        const filt  = owner && owner._filt;
+        if (!filt) return;
+
+        const base = parseFloat(document.getElementById('fCut')?.value || '1800');
+        const amtSt = parseFloat(document.getElementById('fAmt')?.value || '12');
+        const A = parseFloat(document.getElementById('fA')?.value || '0.010');
+        const D = parseFloat(document.getElementById('fD')?.value || '0.120');
+        const S = parseFloat(document.getElementById('fS')?.value || '0.40');
+        const R = parseFloat(document.getElementById('fR')?.value || '0.120');
+        const Qv= parseFloat(document.getElementById('fRes')?.value || '1.0');
+        const typ= (document.getElementById('fType')?.value || 'lowpass');
+        filt.type = typ;
+        filt.Q.cancelScheduledValues(t-0.002);
+        filt.Q.setValueAtTime(Qv, t);
+
+        // convert semitone amount to frequency ratio
+        const ratio = Math.pow(2, amtSt/12);
+        const peak  = base * ratio;
+        const sus   = base * (1 + (ratio-1)*S);
+        const end   = base;
+
+        const f = filt.frequency;
+        f.cancelScheduledValues(t-0.005);
+        f.setValueAtTime(base, t-0.002);
+        f.linearRampToValueAtTime(peak, t + A);
+        // approximate decay using setTargetAtTime
+        f.setTargetAtTime(sus, t + A, Math.max(0.005, D));
+        const relStart = t + Math.max(dur - 0.02, 0);
+        f.setTargetAtTime(end, relStart, Math.max(0.01, R));
+      }catch(e){ /* swallow to avoid clicks */ }
+    };
+  }
+
+  window.addEventListener('load', function(){
+    try{ addEnvelopeUI(); }catch(e){ console.warn(e); }
+    try{ patchAudio(); }catch(e){ console.warn(e); }
+  });
+})();
+
+
+// === Added: Lead B and Drums 2 ===
+(function(){
+  function $(id){ return document.getElementById(id); }
+  // Copy instrument options to Lead B
+  window.addEventListener('DOMContentLoaded', () => {
+    const a=$('leadInst'), b=$('leadBInst');
+    if(a && b){ b.innerHTML = a.innerHTML; }
+    const bindRange = (el, pillId)=>{ const pill=$(pillId); if(el && pillId){ el.addEventListener('input', ()=>{ if(pill) pill.textContent = parseFloat(el.value).toFixed(2); }); } };
+    bindRange($('leadBVol'),'leadBVolVal');
+  });
+
+  // State
+  const steps = 16;
+  let melB = Array(steps).fill(null);
+  let melBStep = 0;
+  let melBRepeat = true;
+
+  const d2 = { len:16, step:0, k:new Array(16).fill(0), s:new Array(16).fill(0), h:new Array(16).fill(0), p:new Array(16).fill(0) };
+
+  function midiToHz(m){ return 440 * Math.pow(2, (m-69)/12); }
+
+  function buildScaleSafe(){
+    try{ return buildScale(); }catch(e){ 
+      // Fallback: chromatic around A4
+      const base = 69; const sc=[0,2,4,5,7,9,11].map(s=>base+s);
+      return sc;
+    }
+  }
+
+  function pickArpNote(sc, dir, idx){
+    if(!Array.isArray(sc) || sc.length===0) return 69;
+    if(dir==='arpRand') return sc[Math.floor(Math.random()*sc.length)];
+    const pos = (idx % sc.length + sc.length) % sc.length;
+    if(dir==='arpDown') return sc[(sc.length-1)-pos];
+    return sc[pos]; // 'arpUp'
+  }
+
+  // Playback wrappers
+  function playLeadBFreq(freq, time, gate){
+    // Minimal-impact approach: temporarily reuse Lead A synth path
+    const instA = $('leadInst'), volA=$('leadVol');
+    const saveInst = instA ? instA.value : null;
+    const saveVol  = volA ? volA.value : null;
+    if(instA) instA.value = $('leadBInst')?.value || saveInst;
+    if(volA)  volA.value  = $('leadBVol')?.value  || saveVol;
+    try{ if(typeof playLeadFreq === 'function') playLeadFreq(freq, time, gate); }catch(e){}
+    finally{
+      if(instA && saveInst!==null) instA.value = saveInst;
+      if(volA && saveVol!==null)   volA.value  = saveVol;
+    }
+  }
+
+  // Scheduling hook: wrap schedule()
+  if(typeof schedule === 'function'){
+    const _origSchedule = schedule;
+    window.schedule = function(){
+      _origSchedule.apply(this, arguments);
+      try{
+        const secPerBeat = 60/parseFloat($('bpm').value || '120');
+        const swing = parseFloat($('swing')?.value || '0');
+        const sw = Math.abs(swing);
+        const stepInBeat = (window.current16 ?? 0) % 4;
+        const swingOffset = (stepInBeat===1 || stepInBeat===3) ? sw*secPerBeat*0.25 : 0;
+        const t = (window.nextNoteTime ?? 0) + swingOffset;
+        const gateLead = parseFloat($('leadGate')?.value || '0.35') * secPerBeat;
+        const i = (window.current16 ?? 0) % steps;
+
+        // Lead B
+        if($('leadBOn')?.checked){
+          const mode = $('leadBMode')?.value || 'pattern';
+          if(mode==='pattern'){
+            const sc = buildScaleSafe();
+            const deg = melB[i];
+            if(deg!=null){
+              const oct = parseInt($('leadBOct')?.value || '0');
+              const midi = (sc[deg % sc.length] ?? sc[0]) + 12*oct;
+              playLeadBFreq(midiToHz(midi), t, gateLead);
+            }
+          }else{
+            const sc = buildScaleSafe();
+            const pos = (melBStep++) % sc.length;
+            const midi = pickArpNote(sc, mode, pos);
+            const oct = parseInt($('leadBOct')?.value || '0');
+            playLeadBFreq(midiToHz(midi + 12*oct), t, gateLead*0.9);
+          }
+        }
+
+        // Drums 2
+        if($('drums2On')?.checked){
+          if(d2.k[i]) { try{ drumKick(t); }catch(e){} }
+          if(d2.s[i]) { try{ drumSnare(t); }catch(e){} }
+          if(d2.h[i]) { try{ drumHat(t); }catch(e){} }
+          if(d2.p[i]) { try{ drumPerc(t); }catch(e){} }
+          d2.step = (i+1)%d2.len;
+        }
+      }catch(e){ /* no-op */ }
+    };
+  }
+
+  // Auto-change hook
+  if(typeof doAutoChange === 'function'){
+    const _dac = doAutoChange;
+    window.doAutoChange = function(){
+      _dac.apply(this, arguments);
+      try{
+        if($('autoMelB')?.checked) randomMelB();
+        if($('autoDrums2')?.checked) randomDrums2();
+      }catch(e){}
+    };
+  }
+
+  // API
+  window.clearMelB = function(){ melB.fill(null); melBStep=0; };
+  window.randomMelB = function(){
+    const sc = buildScaleSafe();
+    const dens = 0.55;
+    melB = melB.map((_,i)=> (Math.random() < dens * ((i%4===0)?1.05:0.95)) ? Math.floor(Math.random()*sc.length) : null);
+  };
+  window.toggleRepeatB = function(){
+    melBRepeat = !melBRepeat; const el=$('repeatBState'); if(el) el.textContent = melBRepeat?'On':'Off';
+  };
+
+  window.clearDrums2 = function(){ d2.k.fill(0); d2.s.fill(0); d2.h.fill(0); d2.p.fill(0); };
+  window.randomDrums2 = function(){
+    for(let i=0;i<d2.len;i++){
+      d2.k[i] = (i%4===0) ? 1 : (Math.random()<0.08?1:0);
+      d2.s[i] = (i%4===2) ? 1 : (Math.random()<0.06?1:0);
+      d2.h[i] = (Math.random()<0.45?1:0);
+      d2.p[i] = (Math.random()<0.12?1:0);
+    }
+  };
+
+  // Wire buttons
+  window.addEventListener('DOMContentLoaded', ()=>{
+    const bind = (id, fn)=>{ const el=$(id); if(el) el.addEventListener('click', fn); };
+    bind('melBRnd', window.randomMelB);
+    bind('melBClr', window.clearMelB);
+    bind('melBRepeat', window.toggleRepeatB);
+    bind('qaRndMelB', window.randomMelB);
+    bind('qaClrMelB', window.clearMelB);
+    bind('qaRndDrums2', window.randomDrums2);
+    bind('qaClrDrums2', window.clearDrums2);
+    bind('qaRndDrums2b', window.randomDrums2);
+    bind('qaClrDrums2b', window.clearDrums2);
+  });
+})();
+// === /Added ===
+
+
+// === Added: Bass switch + Envelope nudge ===
+(function(){
+  function $(id){ return document.getElementById(id); }
+  function cycleSelect(el, mode='cycle'){
+    if(!el) return;
+    const opts = Array.from(el.options).map(o=>o.value);
+    if(opts.length===0) return;
+    if(mode==='random'){
+      el.value = opts[Math.floor(Math.random()*opts.length)];
+    }else{
+      const i = opts.indexOf(el.value);
+      el.value = opts[(i+1+opts.length) % opts.length];
+    }
+    if (typeof el.oninput === 'function') el.oninput();
+    if (typeof el.onchange === 'function') el.onchange();
+  }
+  window.switchBass = function(mode='cycle'){ const el=$('bassInst'); cycleSelect(el, mode); };
+  window.nudgeEnvelopeParams = function(){
+    if (!$('envEnable')?.checked) return;
+    const jitter=(v,d,min,max)=>Math.max(min,Math.min(max, v+(Math.random()*2-1)*d));
+    const set=(id,val)=>{ const el=$(id); if(!el) return; el.value=String(val); el.oninput && el.oninput(); el.onchange && el.onchange(); };
+    const get=(id,def)=>parseFloat($(id)?.value||def);
+    set('fCut', jitter(get('fCut',1800),120,100,8000));
+    set('fAmt', jitter(get('fAmt',12),0.8,0,24));
+    set('fA',   jitter(get('fA',0.010),0.01,0.001,0.5));
+    set('fD',   jitter(get('fD',0.120),0.03,0.01,0.8));
+    set('fS',   jitter(get('fS',0.40),0.05,0,0.95));
+    set('fR',   jitter(get('fR',0.120),0.03,0.01,0.8));
+    set('fRes', jitter(get('fRes',1.0),0.15,0.1,18.0));
+  };
+  window.addEventListener('DOMContentLoaded', ()=>{
+    const bind=(id,fn)=>{ const el=$(id); if(el) el.addEventListener('click', fn); };
+    bind('nextBass', ()=>window.switchBass('cycle'));
+    bind('qaNextBass', ()=>window.switchBass('cycle'));
+    bind('tNextBass', ()=>window.switchBass('cycle'));
+  });
+})();
+// Auto-change hook for envelope nudge
+if (typeof doAutoChange === 'function'){
+  const _dac2 = doAutoChange;
+  window.doAutoChange = function(){
+    _dac2.apply(this, arguments);
+    if(document.getElementById('autoEnvNudge')?.checked){ try{ nudgeEnvelopeParams(); }catch(e){} }
+  };
+}
+// === /Added ===
+</script>
+<!-- MERGE PATCH: Audio Unlock + Env Toggle + Env Nudge -->
+<script>(function(){const $=(s,r=document)=>r.querySelector(s),$$=(s,r=document)=>Array.from(r.querySelectorAll(s));
+function attachAudioResume(g){const r=async()=>{try{const c=g&&g();if(c&&c.state==='suspended')await c.resume()}catch(e){}};['pointerdown','touchstart','keydown','mousedown'].forEach(ev=>window.addEventListener(ev,r,{passive:!0}));const b=$('#startBtn')||$('#start')||$('#play');b&&b.addEventListener('click',r)}
+window.__ctxGetter||(window.__ctxGetter=function(){return window.ctx||window.audioCtx||null});attachAudioResume(window.__ctxGetter);
+function envOn(){const el=document.getElementById('envEnable')||document.getElementById('fEnvOn');return el?!!el.checked:!0}
+if(typeof window.voiceOut==='function'&&!window.__voiceOutPatched){const o=window.voiceOut;window.voiceOut=function(){const g=o.apply(this,arguments);try{const f=g&&(g._filt||g._filter);const te=document.getElementById('fType');const typ=te?te.value:'lowpass';f&&(f.type=envOn()?typ:'allpass')}catch(e){}return g};window.__voiceOutPatched=!0}
+if(typeof window.envGain==='function'&&!window.__envGainPatched){window.__origEnvGain=window.envGain}
+window.envGain=function(target,t,dur,a=0.004,d=0.06,s=0.35,vel=1){const peak=.9*(vel??1);try{target.cancelScheduledValues(t-.005);target.setValueAtTime(.0001,t-.002);target.linearRampToValueAtTime(peak,t+(a??.004));target.setTargetAtTime(peak*(s??.35),t+(a??.004),(d??.06));const rs=t+Math.max((dur??.15)-.02,0);target.setTargetAtTime(.0001,rs,.015)}catch(e){}try{const owner=target&&target._owner,f=owner&&(owner._filt||owner._filter);if(!f)return;const te=document.getElementById('fType'),ce=document.getElementById('fCut'),qe=document.getElementById('fRes'),ae=document.getElementById('fAmt'),Ae=document.getElementById('fA'),De=document.getElementById('fD'),Se=document.getElementById('fS'),Re=document.getElementById('fR');if(!envOn()){te&&(f.type='allpass');const base=ce?parseFloat(ce.value):1800;f.frequency.cancelScheduledValues(t-.002);f.frequency.setValueAtTime(base,t-.002);return}const typ=te?te.value:'lowpass',base=ce?parseFloat(ce.value):1800,Qv=qe?parseFloat(qe.value):1,amtSt=ae?parseFloat(ae.value):12,fA=Ae?parseFloat(Ae.value):.01,fD=De?parseFloat(De.value):.12,fS=Se?parseFloat(Se.value):.4,fR=Re?parseFloat(Re.value):.12;f.type=typ;f.Q.cancelScheduledValues(t-.002);f.Q.setValueAtTime(Qv,t);const ratio=Math.pow(2,amtSt/12),fpeak=base*ratio,fsus=base*(1+(ratio-1)*fS),rs=t+Math.max((dur??.15)-.02,0),F=f.frequency;F.cancelScheduledValues(t-.005);F.setValueAtTime(base,t-.002);F.linearRampToValueAtTime(fpeak,t+fA);F.setTargetAtTime(fsus,t+fA,Math.max(.005,fD));F.setTargetAtTime(base,rs,Math.max(.01,fR))}catch(e){}}; 
+function clamp(v,a,b){return Math.min(b,Math.max(a,v))}function mutate(el,v){el&&(el.value=v,el.dispatchEvent(new Event('input')))}
+function nudgeEnv(){if(!$('#autoEnvNudge')||!$('#autoEnvNudge').checked)return;const ao=$('#autoOn')||$('#autoChange')||$('#autoOnChk');if(!ao||!ao.checked)return;const p=$('#autoEnvPct'),pct=p?parseFloat(p.value):.15,m=v=>v*(1+(Math.random()*2-1)*pct),fCut=$('#fCut'),fRes=$('#fRes'),fAmt=$('#fAmt'),fA=$('#fA'),fD=$('#fD'),fS=$('#fS'),fR=$('#fR');fCut&&mutate(fCut,clamp(m(parseFloat(fCut.value)),60,12000));fRes&&mutate(fRes,clamp(m(parseFloat(fRes.value)),.2,18));if(fAmt){let v=Math.round(parseFloat(fAmt.value)+(Math.random()*2-1)*Math.max(1,Math.round(24*pct)));mutate(fAmt,clamp(v,-24,24))}fA&&mutate(fA,clamp(m(parseFloat(fA.value)),.001,1.5));fD&&mutate(fD,clamp(m(parseFloat(fD.value)),.005,2));fS&&mutate(fS,clamp(m(parseFloat(fS.value)),0,1));fR&&mutate(fR,clamp(m(parseFloat(fR.value)),.005,2))} 
+(function(){const led=$('#beatLED');if(!led)return;const ms=$('#autoMeasures')||$('#autoBars');let bars=0;new MutationObserver(()=>{bars++;const mod=parseInt(ms?ms.value:'2',10)||2;if(bars%mod===0)nudgeEnv()}).observe(led,{attributes:!0,attributeFilter:['class']})})(); 
+(function(){if($('#nextBass')||$('#switchBassBtn'))return;const a=$('#nextInst')||$$('button').find(b=>/switch instrument/i.test(b.textContent||''));if(!a||!a.parentNode)return;const b=document.createElement('button');b.id='switchBassBtn';b.textContent='🎛️ Switch Bass';b.addEventListener('click',()=>{const s=$('#bassInst');if(!s)return;s.selectedIndex=(s.selectedIndex+1)%s.options.length;s.dispatchEvent(new Event('input'))});a.parentNode.insertBefore(b,a.nextSibling)})(); 
+})();</script>
+<!-- END MERGE PATCH -->
+<!-- END MERGE PATCH -->
+<!-- PATCH: Make Second Lead (Lead B) audible by mirroring Lead playback -->
+<script>
+(function(){
+  const $ = (s,r=document)=>r.querySelector(s);
+
+  function getCtx(){ return window.ctx || window.audioCtx || null; }
+
+  // Read Lead B UI state (works with several common id names)
+  function leadBEnabled(){
+    const ids=['leadBOn','layerLeadB','lead2On','leadBEnable','leadBEnabled'];
+    for (const id of ids){ const el=document.getElementById(id); if (el) return !!el.checked; }
+    // If no explicit toggle, assume enabled if there’s a “Lead B” section in the UI
+    return !!(Array.from(document.querySelectorAll('legend')).some(l=>/lead\s*b/i.test(l.textContent||'')));
+  }
+  function leadBVol(){
+    const ids=['leadBVol','lead2Vol','volLeadB'];
+    for (const id of ids){ const el=document.getElementById(id); if (el) return Math.max(0, parseFloat(el.value||'0.8')); }
+    return 0.8;
+  }
+  function leadBTranspose(){
+    const ids=['leadBTranspose','leadBInterval','lead2Interval'];
+    for (const id of ids){ const el=document.getElementById(id); if (el) return parseInt(el.value)||0; }
+    return 0; // unison by default
+  }
+  function leadBInst(){
+    const ids=['leadBInst','lead2Inst'];
+    for (const id of ids){ const el=document.getElementById(id); if (el) return (el.value||'square'); }
+    return 'square';
+  }
+  function oscTypeFor(inst){
+    switch((inst||'').toLowerCase()){
+      case 'saw': case 'supersaw': return 'sawtooth';
+      case 'triangle': return 'triangle';
+      case 'pwm': case 'square': case 'chipsq': return 'square';
+      default: return 'sawtooth';
+    }
+  }
+  const stToRatio = st => Math.pow(2, (st||0)/12);
+
+  function playLeadBWithFreq(f, t, gate, vol){
+    const ctx = getCtx(); if (!ctx) return;
+    const out = (typeof window.voiceOut === 'function') ? window.voiceOut() : new GainNode(ctx,{gain:1});
+    const type = oscTypeFor(leadBInst());
+    const o = new OscillatorNode(ctx, {type, frequency: f});
+    const g = new GainNode(ctx, {gain: 0});
+    // let the filter envelope (envGain) see the voice chain for cutoff sweeps
+    g.gain._owner = out;
+    o.connect(g).connect(out);
+
+    if (typeof window.envGain === 'function'){
+      window.envGain(g.gain, t, gate, 0.004, 0.06, 0.35, vol);
+    } else {
+      // fallback amp envelope
+      g.gain.setValueAtTime(0, t);
+      g.gain.linearRampToValueAtTime(0.8*vol, t+0.01);
+      g.gain.exponentialRampToValueAtTime(0.0001, t + Math.max(gate, 0.08));
+    }
+
+    o.start(t);
+    o.stop(t + gate + 0.1);
+  }
+
+  // Mirror the primary lead into Lead B without touching your scheduler
+  if (typeof window.playLead === 'function' && !window.__leadBPatched){
+    const __orig = window.playLead;
+    window.playLead = function(f, t, gate){
+      const res = __orig.apply(this, arguments);
+      try{
+        if (leadBEnabled()){
+          const vol = leadBVol();
+          if (vol > 0.0001){
+            const st = leadBTranspose();
+            const f2 = f * stToRatio(st);
+            // small gate change so unison doesn’t phase-cancel perfectly
+            playLeadBWithFreq(f2, t, gate*0.96, vol);
+          }
+        }
+      }catch(e){}
+      return res;
+    };
+    window.__leadBPatched = true;
+    console.log('[LeadB Patch] Second lead mirroring enabled.');
+  }
+})();
+</script>
+<!-- END PATCH -->
+
 </body>
 </html>
