@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width,initial-scale=1" />
-<title>Random Music Studio v7.7 — Party Martyr</title>
+<title>Random Music Studio v7.7 —by Party Marty</title>
 <style>
   :root{ --bg:#0a0f14; --panel:#111827; --ink:#e6edf3; --muted:#9fb0c3; --accent:#7dd3fc; --accent2:#a78bfa; --good:#86efac; --warn:#fbbf24 }
   *{box-sizing:border-box}
@@ -58,11 +58,17 @@
     .black{width:18px;height:68px;left:22px}
     main{padding:10px}
   }
+
+  body.env-disabled fieldset legend:contains('Envelope'),
+  body.env-disabled .env-section label,
+  body.env-disabled .env-section input,
+  body.env-disabled .env-section select { opacity: 0.65; pointer-events: none; }
+
 </style>
 </head>
 <body>
 <header>
-  <h1>🎹 Random Music Studio v7.7 — Party Marty</h1>
+  <h1>🎹 Random Music Studio v7.7 • by Party Marty</h1>
 </header>
 <main>
   <section class="panel controls">
@@ -110,7 +116,7 @@
       <input id="autoLastBarImprov" type="checkbox"/>
       randomize last bar
     </label>
-    <span class="mutetext">Improvise melody + bass for 1 bar before the main change</span>
+    
   </div>
 
       <div class="row">
@@ -185,6 +191,7 @@
         <label></label>
         <button id="qaRndDrums">🎲 Randomize Drums</button>
         <button id="qaClrDrums">🧹 Clear Drums</button>
+        <button id="qaSwitchDrums">🎛️ Switch Drums</button>
       </div>
       <div class="row">
         <label></label>
@@ -501,6 +508,7 @@
     <div class="row">
       <button id="drmRnd">🎲 Randomize Drums</button>
       <button id="drmClr">🧹 Clear</button>
+      <button id="drmSwitch">🎛️ Switch Drums</button>
     </div>
 
     <h3 style="margin:0">Melody Lane + Keyboard</h3>
@@ -526,7 +534,45 @@
 
 <script>
 (function(){
-  const noteNames=["C","C#","D","D#","E","F","F#","G","G#","A","A#","B"];
+  
+// === Envelope Kill Switch behavior & UI lock ===
+const envKill = document.getElementById('envEnable'); // checkbox means "Envelope enabled"
+const fType = document.getElementById('fType');
+const fCut  = document.getElementById('fCut');
+const fRes  = document.getElementById('fRes');
+const fAmt  = document.getElementById('fAmt');
+const fA    = document.getElementById('fA');
+const fD    = document.getElementById('fD');
+const fS    = document.getElementById('fS');
+const fR    = document.getElementById('fR');
+const fDrive= document.getElementById('fDrive');
+
+function setEnvUiEnabled(on){
+  const nodes = [fType,fCut,fRes,fAmt,fA,fD,fS,fR];
+  nodes.forEach(n => { if(n) n.disabled = !on; });
+  // Add a subtle visual hint
+  if (document.body){
+    document.body.classList.toggle('env-disabled', !on);
+  }
+}
+
+if (envKill){
+  setEnvUiEnabled(envKill.checked);
+  envKill.addEventListener('change', () => {
+    setEnvUiEnabled(envKill.checked);
+  });
+}
+
+// Scale down envelope-related random deltas so the filter doesn't choke the lead
+// (particularly when drive is off). We apply gentle clamping everywhere we jitter.
+function gentleEnvClampHz(hz){
+  // Keep in musical, non-silencing range
+  const minHz = 400;
+  const maxHz = 8000;
+  return Math.max(minHz, Math.min(maxHz, hz));
+}
+
+const noteNames=["C","C#","D","D#","E","F","F#","G","G#","A","A#","B"];
   const scales = {
   // Canonical modes
   ionian:     [0,2,4,5,7,9,11],
@@ -722,46 +768,86 @@
   const bcs= new GainNode(ctx,{gain:1}); dc.connect(bcs).connect(bcSend);
   return g;
 }
-  function envGain(target,t,dur,a=0.004,d=0.06,s=0.35,vel=1){
-  // Original amplitude envelope
-  const peak=0.9*vel;
-  target.cancelScheduledValues(t-0.005);
-  target.setValueAtTime(0.0001, t-0.002);
-  target.linearRampToValueAtTime(peak, t+a);
-  target.setTargetAtTime(peak*s, t+a, d);
+  
+function envGain(target,t,dur,a=0.004,d=0.06,s=0.35,vel=1){
+  const envOn = !!(document.getElementById('envEnable')?.checked);
+  // Always clear any pending ramps for stability
+  try{ target.cancelScheduledValues((t||0)-0.01); }catch(e){}
+  const owner = target && target._owner;
+  const filt  = owner && owner._filt;
+
+  if(!envOn){
+    // BYPASS ENVELOPE: simple gate on/off, no ADSR sculpting,
+    // and keep the filter neutral (wide open / unity)
+    const level = Math.max(0.0001, vel);
+    target.setValueAtTime(level, t);
+    // rapid tail to avoid clicks on note end
+    const relStart = t + Math.max(dur - 0.01, 0);
+    target.linearRampToValueAtTime(level, relStart);
+    target.setTargetAtTime(0.0001, relStart, 0.010);
+
+    if (filt){
+      // Neutralize filter so it can't close down the sound
+      try{
+        const typ = (document.getElementById('fType')?.value || 'lowpass');
+        filt.type = typ;
+        // For lowpass, open wide; for others, keep musical defaults
+        if (typ === 'lowpass'){
+          filt.frequency.setValueAtTime(18000, t);
+          filt.Q.setValueAtTime(0.707, t);
+        } else {
+          // Non-destructive defaults
+          filt.frequency.setValueAtTime(gentleEnvClampHz(parseFloat(document.getElementById('fCut')?.value || '1800')), t);
+          filt.Q.setValueAtTime(parseFloat(document.getElementById('fRes')?.value || '1.0'), t);
+        }
+      }catch(e){}
+    }
+    return;
+  }
+
+  // --- Standard ADSR amplitude ---
+  const peak = 0.9 * vel;
+  target.setValueAtTime(0.0001, Math.max(0, t-0.002));
+  target.linearRampToValueAtTime(peak, t + a);
+  // Use setTargetAtTime for smoother decay
+  target.setTargetAtTime(peak * s, t + a, d);
   const relStart = t + Math.max(dur - 0.02, 0);
   target.setTargetAtTime(0.0001, relStart, 0.015);
 
-  // Filter envelope (if this is a lead voice with per-voice filter)
+  // --- Filter envelope (gentler) ---
   try{
-    const owner = target && target._owner;
-    const filt  = owner && owner._filt;
     if (!filt) return;
 
-    const base = parseFloat(document.getElementById('fCut')?.value || '1800');
-    const amtSt = parseFloat(document.getElementById('fAmt')?.value || '12');
-    const A = parseFloat(document.getElementById('fA')?.value || '0.010');
-    const D = parseFloat(document.getElementById('fD')?.value || '0.120');
-    const S = parseFloat(document.getElementById('fS')?.value || '0.40');
-    const R = parseFloat(document.getElementById('fR')?.value || '0.120');
-    const Qv= parseFloat(document.getElementById('fRes')?.value || '1.0');
+    const base = gentleEnvClampHz(parseFloat(document.getElementById('fCut')?.value || '1800'));
+    const amtStUi = parseFloat(document.getElementById('fAmt')?.value || '5'); // default UI near +5 st
+    // Scale the envelope amount down further so it can't over-close
+    const amtSt = Math.max(-6, Math.min(6, amtStUi * 0.7));
+
+    // Slightly longer A/D defaults were causing "choke"; keep them conservative
+    const A = Math.max(0.002, parseFloat(document.getElementById('fA')?.value || '0.050'));
+    const D = Math.max(0.010, parseFloat(document.getElementById('fD')?.value || '0.090'));
+    const S = Math.max(0.05,  Math.min(0.95, parseFloat(document.getElementById('fS')?.value || '0.35')));
+    const R = Math.max(0.010, parseFloat(document.getElementById('fR')?.value || '0.120'));
+    const Qv= Math.max(0.4,  Math.min(10.0, parseFloat(document.getElementById('fRes')?.value || '1.0')));
     const typ= (document.getElementById('fType')?.value || 'lowpass');
+
     filt.type = typ;
-    filt.Q.cancelScheduledValues(t-0.002);
+    filt.Q.cancelScheduledValues(Math.max(0, t-0.002));
     filt.Q.setValueAtTime(Qv, t);
 
     const ratio = Math.pow(2, amtSt/12);
-    const fpeak = base * ratio;
-    const fsus  = base * (1 + (ratio-1)*S);
+    const fpeak = gentleEnvClampHz(base * ratio);
+    const fsus  = gentleEnvClampHz(base * (1 + (ratio-1) * S));
 
     const f = filt.frequency;
-    f.cancelScheduledValues(t-0.005);
-    f.setValueAtTime(base, t-0.002);
+    f.cancelScheduledValues(Math.max(0, t-0.005));
+    f.setValueAtTime(base, Math.max(0, t-0.002));
     f.linearRampToValueAtTime(fpeak, t + A);
     f.setTargetAtTime(fsus, t + A, Math.max(0.005, D));
     f.setTargetAtTime(base, relStart, Math.max(0.01, R));
   }catch(e){}
 }
+
   function humanize(t,baseGain){ const ms=parseFloat(humMs.value), vel=parseFloat(humVel.value); return { t: t + ((Math.random()*2-1)*(ms/1000)), g: clamp(baseGain + (Math.random()*2-1)*vel, 0.0001, 1.5) } }
 
   function playLeadFreq(freq, time, gate){
@@ -1057,6 +1143,80 @@ try {
   renderRootOptions();
   renderGrids(); renderKeyboard(); randomDrums(); randomMel(); randomBass();
   ['touchstart','pointerdown','keydown','mousedown'].forEach(ev=>window.addEventListener(ev, async()=>{ if(ctx && ctx.state==='suspended') await ctx.resume(); }, {passive:true}));
+
+// === Switch Drum Types (preserve patterns) ===
+function randomChoice(a){ return a[Math.floor(Math.random()*a.length)]; }
+function switchDrumTypes(){
+  const kickTypes = ['acoustic','808','clicky'];
+  const snrTypes  = ['noise','808','clap'];
+  const hatTypes  = ['ch','oh','sh'];
+  const prcTypes  = ['clap','tom','cow'];
+  if (drumCtrl.kick?.type) drumCtrl.kick.type.value = randomChoice(kickTypes);
+  if (drumCtrl.snr?.type)  drumCtrl.snr.type.value  = randomChoice(snrTypes);
+  if (drumCtrl.hat?.type)  drumCtrl.hat.type.value  = randomChoice(hatTypes);
+  if (drumCtrl.prc?.type)  drumCtrl.prc.type.value  = randomChoice(prcTypes);
+
+  // Tasteful random tweaks to character without silencing
+  [drumCtrl.kick, drumCtrl.snr, drumCtrl.hat, drumCtrl.prc].forEach(row => {
+    if (!row) return;
+    if (row.tune) row.tune.value = (Math.random()*24|0)-12;
+    if (row.vol)  row.vol.value  = Math.min(1.2, Math.max(0.55, (parseFloat(row.vol.value)||0.9) * (0.8 + Math.random()*0.4)));
+    if (row.dly)  row.dly.value  = Math.min(1, Math.max(0, (parseFloat(row.dly.value)||0) * (Math.random()<0.5? 0 : 1)));
+    if (row.rev)  row.rev.value  = Math.min(1, Math.max(0, (parseFloat(row.rev.value)||0.1)));
+  });
+}
+
+const qaSwitchDrumsBtn = document.getElementById('qaSwitchDrums');
+if (qaSwitchDrumsBtn) qaSwitchDrumsBtn.addEventListener('click', switchDrumTypes);
+const drmSwitchBtn = document.getElementById('drmSwitch');
+if (drmSwitchBtn) drmSwitchBtn.addEventListener('click', switchDrumTypes);
+
+
+// === Auto trigger change melody when last-bar improv is engaged ===
+const autoLastBarCb = document.getElementById('autoLastBarImprov');
+function triggerMelodyChange(){
+  // Prefer the dedicated button if present
+  const btn = document.getElementById('melRnd') || document.getElementById('qaRndMel') || document.getElementById('tRndMel');
+  if (btn) { btn.click(); return; }
+  // Fallback: if there is a function melRnd() in scope, call it
+  try{ if (typeof melRnd === 'function') melRnd(); }catch(e){}
+}
+
+// Small scheduler shim: when measure counter is one bar before change, do a one-bar improv
+// This relies on existing variables: autoOn, autoMeasures, measureCount, etc.
+(function(){
+  const origAdvance = (window.__advanceStep || null);
+  // We'll intercept the section where measureCount increments if we can find the global tick.
+  // If not available, we attach to the main animation frame via nextNoteTime guard.
+  let lastBarScheduled = false;
+  function maybeScheduleLastBar(){
+    if (!autoLastBarCb?.checked) { lastBarScheduled = false; return; }
+    if (!autoOn?.checked) { lastBarScheduled = false; return; }
+    const bars = parseInt(autoMeasures?.value || '2');
+    // If we're one bar before the change boundary, schedule a one-bar improv (mel+bass)
+    if ((measureCount % bars) === (bars - 1)) {
+      if (!lastBarScheduled){
+        // Randomize melody + bass for the next bar
+        triggerMelodyChange();
+        const rb = document.getElementById('bassRnd') || document.getElementById('qaRndBass') || document.getElementById('tRndBass');
+        if (rb) rb.click();
+        lastBarScheduled = true;
+      }
+    } else {
+      lastBarScheduled = false;
+    }
+  }
+
+  // Try to hook into the main scheduler loop by wrapping requestAnimationFrame scheduling of steps.
+  const _raf = window.requestAnimationFrame;
+  window.requestAnimationFrame = function(fn){
+    return _raf.call(window, function(time){
+      try{ maybeScheduleLastBar(); }catch(e){}
+      return fn(time);
+    });
+  };
+})();
+
 })();
 
 const autoLastBarImprov = $('autoLastBarImprov');
@@ -1183,7 +1343,81 @@ let improvActive = false;
           const n=1024, c=new Float32Array(n);
           for (let i=0;i<n;i++){ const x=i*2/n-1; c[i] = Math.tanh(amount*x); }
           return c;
-        })();
+        
+// === Switch Drum Types (preserve patterns) ===
+function randomChoice(a){ return a[Math.floor(Math.random()*a.length)]; }
+function switchDrumTypes(){
+  const kickTypes = ['acoustic','808','clicky'];
+  const snrTypes  = ['noise','808','clap'];
+  const hatTypes  = ['ch','oh','sh'];
+  const prcTypes  = ['clap','tom','cow'];
+  if (drumCtrl.kick?.type) drumCtrl.kick.type.value = randomChoice(kickTypes);
+  if (drumCtrl.snr?.type)  drumCtrl.snr.type.value  = randomChoice(snrTypes);
+  if (drumCtrl.hat?.type)  drumCtrl.hat.type.value  = randomChoice(hatTypes);
+  if (drumCtrl.prc?.type)  drumCtrl.prc.type.value  = randomChoice(prcTypes);
+
+  // Tasteful random tweaks to character without silencing
+  [drumCtrl.kick, drumCtrl.snr, drumCtrl.hat, drumCtrl.prc].forEach(row => {
+    if (!row) return;
+    if (row.tune) row.tune.value = (Math.random()*24|0)-12;
+    if (row.vol)  row.vol.value  = Math.min(1.2, Math.max(0.55, (parseFloat(row.vol.value)||0.9) * (0.8 + Math.random()*0.4)));
+    if (row.dly)  row.dly.value  = Math.min(1, Math.max(0, (parseFloat(row.dly.value)||0) * (Math.random()<0.5? 0 : 1)));
+    if (row.rev)  row.rev.value  = Math.min(1, Math.max(0, (parseFloat(row.rev.value)||0.1)));
+  });
+}
+
+const qaSwitchDrumsBtn = document.getElementById('qaSwitchDrums');
+if (qaSwitchDrumsBtn) qaSwitchDrumsBtn.addEventListener('click', switchDrumTypes);
+const drmSwitchBtn = document.getElementById('drmSwitch');
+if (drmSwitchBtn) drmSwitchBtn.addEventListener('click', switchDrumTypes);
+
+
+// === Auto trigger change melody when last-bar improv is engaged ===
+const autoLastBarCb = document.getElementById('autoLastBarImprov');
+function triggerMelodyChange(){
+  // Prefer the dedicated button if present
+  const btn = document.getElementById('melRnd') || document.getElementById('qaRndMel') || document.getElementById('tRndMel');
+  if (btn) { btn.click(); return; }
+  // Fallback: if there is a function melRnd() in scope, call it
+  try{ if (typeof melRnd === 'function') melRnd(); }catch(e){}
+}
+
+// Small scheduler shim: when measure counter is one bar before change, do a one-bar improv
+// This relies on existing variables: autoOn, autoMeasures, measureCount, etc.
+(function(){
+  const origAdvance = (window.__advanceStep || null);
+  // We'll intercept the section where measureCount increments if we can find the global tick.
+  // If not available, we attach to the main animation frame via nextNoteTime guard.
+  let lastBarScheduled = false;
+  function maybeScheduleLastBar(){
+    if (!autoLastBarCb?.checked) { lastBarScheduled = false; return; }
+    if (!autoOn?.checked) { lastBarScheduled = false; return; }
+    const bars = parseInt(autoMeasures?.value || '2');
+    // If we're one bar before the change boundary, schedule a one-bar improv (mel+bass)
+    if ((measureCount % bars) === (bars - 1)) {
+      if (!lastBarScheduled){
+        // Randomize melody + bass for the next bar
+        triggerMelodyChange();
+        const rb = document.getElementById('bassRnd') || document.getElementById('qaRndBass') || document.getElementById('tRndBass');
+        if (rb) rb.click();
+        lastBarScheduled = true;
+      }
+    } else {
+      lastBarScheduled = false;
+    }
+  }
+
+  // Try to hook into the main scheduler loop by wrapping requestAnimationFrame scheduling of steps.
+  const _raf = window.requestAnimationFrame;
+  window.requestAnimationFrame = function(fn){
+    return _raf.call(window, function(time){
+      try{ maybeScheduleLastBar(); }catch(e){}
+      return fn(time);
+    });
+  };
+})();
+
+})();
         g.connect(pre).connect(ws).connect(filt).connect(dc);
       } else {
         g.connect(pre).connect(filt).connect(dc);
@@ -1245,6 +1479,80 @@ let improvActive = false;
     try{ addEnvelopeUI(); }catch(e){ console.warn(e); }
     try{ patchAudio(); }catch(e){ console.warn(e); }
   });
+
+// === Switch Drum Types (preserve patterns) ===
+function randomChoice(a){ return a[Math.floor(Math.random()*a.length)]; }
+function switchDrumTypes(){
+  const kickTypes = ['acoustic','808','clicky'];
+  const snrTypes  = ['noise','808','clap'];
+  const hatTypes  = ['ch','oh','sh'];
+  const prcTypes  = ['clap','tom','cow'];
+  if (drumCtrl.kick?.type) drumCtrl.kick.type.value = randomChoice(kickTypes);
+  if (drumCtrl.snr?.type)  drumCtrl.snr.type.value  = randomChoice(snrTypes);
+  if (drumCtrl.hat?.type)  drumCtrl.hat.type.value  = randomChoice(hatTypes);
+  if (drumCtrl.prc?.type)  drumCtrl.prc.type.value  = randomChoice(prcTypes);
+
+  // Tasteful random tweaks to character without silencing
+  [drumCtrl.kick, drumCtrl.snr, drumCtrl.hat, drumCtrl.prc].forEach(row => {
+    if (!row) return;
+    if (row.tune) row.tune.value = (Math.random()*24|0)-12;
+    if (row.vol)  row.vol.value  = Math.min(1.2, Math.max(0.55, (parseFloat(row.vol.value)||0.9) * (0.8 + Math.random()*0.4)));
+    if (row.dly)  row.dly.value  = Math.min(1, Math.max(0, (parseFloat(row.dly.value)||0) * (Math.random()<0.5? 0 : 1)));
+    if (row.rev)  row.rev.value  = Math.min(1, Math.max(0, (parseFloat(row.rev.value)||0.1)));
+  });
+}
+
+const qaSwitchDrumsBtn = document.getElementById('qaSwitchDrums');
+if (qaSwitchDrumsBtn) qaSwitchDrumsBtn.addEventListener('click', switchDrumTypes);
+const drmSwitchBtn = document.getElementById('drmSwitch');
+if (drmSwitchBtn) drmSwitchBtn.addEventListener('click', switchDrumTypes);
+
+
+// === Auto trigger change melody when last-bar improv is engaged ===
+const autoLastBarCb = document.getElementById('autoLastBarImprov');
+function triggerMelodyChange(){
+  // Prefer the dedicated button if present
+  const btn = document.getElementById('melRnd') || document.getElementById('qaRndMel') || document.getElementById('tRndMel');
+  if (btn) { btn.click(); return; }
+  // Fallback: if there is a function melRnd() in scope, call it
+  try{ if (typeof melRnd === 'function') melRnd(); }catch(e){}
+}
+
+// Small scheduler shim: when measure counter is one bar before change, do a one-bar improv
+// This relies on existing variables: autoOn, autoMeasures, measureCount, etc.
+(function(){
+  const origAdvance = (window.__advanceStep || null);
+  // We'll intercept the section where measureCount increments if we can find the global tick.
+  // If not available, we attach to the main animation frame via nextNoteTime guard.
+  let lastBarScheduled = false;
+  function maybeScheduleLastBar(){
+    if (!autoLastBarCb?.checked) { lastBarScheduled = false; return; }
+    if (!autoOn?.checked) { lastBarScheduled = false; return; }
+    const bars = parseInt(autoMeasures?.value || '2');
+    // If we're one bar before the change boundary, schedule a one-bar improv (mel+bass)
+    if ((measureCount % bars) === (bars - 1)) {
+      if (!lastBarScheduled){
+        // Randomize melody + bass for the next bar
+        triggerMelodyChange();
+        const rb = document.getElementById('bassRnd') || document.getElementById('qaRndBass') || document.getElementById('tRndBass');
+        if (rb) rb.click();
+        lastBarScheduled = true;
+      }
+    } else {
+      lastBarScheduled = false;
+    }
+  }
+
+  // Try to hook into the main scheduler loop by wrapping requestAnimationFrame scheduling of steps.
+  const _raf = window.requestAnimationFrame;
+  window.requestAnimationFrame = function(fn){
+    return _raf.call(window, function(time){
+      try{ maybeScheduleLastBar(); }catch(e){}
+      return fn(time);
+    });
+  };
+})();
+
 })();
 
 
@@ -1393,6 +1701,80 @@ let improvActive = false;
     bind('qaRndDrums2b', window.randomDrums2);
     bind('qaClrDrums2b', window.clearDrums2);
   });
+
+// === Switch Drum Types (preserve patterns) ===
+function randomChoice(a){ return a[Math.floor(Math.random()*a.length)]; }
+function switchDrumTypes(){
+  const kickTypes = ['acoustic','808','clicky'];
+  const snrTypes  = ['noise','808','clap'];
+  const hatTypes  = ['ch','oh','sh'];
+  const prcTypes  = ['clap','tom','cow'];
+  if (drumCtrl.kick?.type) drumCtrl.kick.type.value = randomChoice(kickTypes);
+  if (drumCtrl.snr?.type)  drumCtrl.snr.type.value  = randomChoice(snrTypes);
+  if (drumCtrl.hat?.type)  drumCtrl.hat.type.value  = randomChoice(hatTypes);
+  if (drumCtrl.prc?.type)  drumCtrl.prc.type.value  = randomChoice(prcTypes);
+
+  // Tasteful random tweaks to character without silencing
+  [drumCtrl.kick, drumCtrl.snr, drumCtrl.hat, drumCtrl.prc].forEach(row => {
+    if (!row) return;
+    if (row.tune) row.tune.value = (Math.random()*24|0)-12;
+    if (row.vol)  row.vol.value  = Math.min(1.2, Math.max(0.55, (parseFloat(row.vol.value)||0.9) * (0.8 + Math.random()*0.4)));
+    if (row.dly)  row.dly.value  = Math.min(1, Math.max(0, (parseFloat(row.dly.value)||0) * (Math.random()<0.5? 0 : 1)));
+    if (row.rev)  row.rev.value  = Math.min(1, Math.max(0, (parseFloat(row.rev.value)||0.1)));
+  });
+}
+
+const qaSwitchDrumsBtn = document.getElementById('qaSwitchDrums');
+if (qaSwitchDrumsBtn) qaSwitchDrumsBtn.addEventListener('click', switchDrumTypes);
+const drmSwitchBtn = document.getElementById('drmSwitch');
+if (drmSwitchBtn) drmSwitchBtn.addEventListener('click', switchDrumTypes);
+
+
+// === Auto trigger change melody when last-bar improv is engaged ===
+const autoLastBarCb = document.getElementById('autoLastBarImprov');
+function triggerMelodyChange(){
+  // Prefer the dedicated button if present
+  const btn = document.getElementById('melRnd') || document.getElementById('qaRndMel') || document.getElementById('tRndMel');
+  if (btn) { btn.click(); return; }
+  // Fallback: if there is a function melRnd() in scope, call it
+  try{ if (typeof melRnd === 'function') melRnd(); }catch(e){}
+}
+
+// Small scheduler shim: when measure counter is one bar before change, do a one-bar improv
+// This relies on existing variables: autoOn, autoMeasures, measureCount, etc.
+(function(){
+  const origAdvance = (window.__advanceStep || null);
+  // We'll intercept the section where measureCount increments if we can find the global tick.
+  // If not available, we attach to the main animation frame via nextNoteTime guard.
+  let lastBarScheduled = false;
+  function maybeScheduleLastBar(){
+    if (!autoLastBarCb?.checked) { lastBarScheduled = false; return; }
+    if (!autoOn?.checked) { lastBarScheduled = false; return; }
+    const bars = parseInt(autoMeasures?.value || '2');
+    // If we're one bar before the change boundary, schedule a one-bar improv (mel+bass)
+    if ((measureCount % bars) === (bars - 1)) {
+      if (!lastBarScheduled){
+        // Randomize melody + bass for the next bar
+        triggerMelodyChange();
+        const rb = document.getElementById('bassRnd') || document.getElementById('qaRndBass') || document.getElementById('tRndBass');
+        if (rb) rb.click();
+        lastBarScheduled = true;
+      }
+    } else {
+      lastBarScheduled = false;
+    }
+  }
+
+  // Try to hook into the main scheduler loop by wrapping requestAnimationFrame scheduling of steps.
+  const _raf = window.requestAnimationFrame;
+  window.requestAnimationFrame = function(fn){
+    return _raf.call(window, function(time){
+      try{ maybeScheduleLastBar(); }catch(e){}
+      return fn(time);
+    });
+  };
+})();
+
 })();
 // === /Added ===
 
@@ -1433,6 +1815,80 @@ let improvActive = false;
     bind('qaNextBass', ()=>window.switchBass('cycle'));
     bind('tNextBass', ()=>window.switchBass('cycle'));
   });
+
+// === Switch Drum Types (preserve patterns) ===
+function randomChoice(a){ return a[Math.floor(Math.random()*a.length)]; }
+function switchDrumTypes(){
+  const kickTypes = ['acoustic','808','clicky'];
+  const snrTypes  = ['noise','808','clap'];
+  const hatTypes  = ['ch','oh','sh'];
+  const prcTypes  = ['clap','tom','cow'];
+  if (drumCtrl.kick?.type) drumCtrl.kick.type.value = randomChoice(kickTypes);
+  if (drumCtrl.snr?.type)  drumCtrl.snr.type.value  = randomChoice(snrTypes);
+  if (drumCtrl.hat?.type)  drumCtrl.hat.type.value  = randomChoice(hatTypes);
+  if (drumCtrl.prc?.type)  drumCtrl.prc.type.value  = randomChoice(prcTypes);
+
+  // Tasteful random tweaks to character without silencing
+  [drumCtrl.kick, drumCtrl.snr, drumCtrl.hat, drumCtrl.prc].forEach(row => {
+    if (!row) return;
+    if (row.tune) row.tune.value = (Math.random()*24|0)-12;
+    if (row.vol)  row.vol.value  = Math.min(1.2, Math.max(0.55, (parseFloat(row.vol.value)||0.9) * (0.8 + Math.random()*0.4)));
+    if (row.dly)  row.dly.value  = Math.min(1, Math.max(0, (parseFloat(row.dly.value)||0) * (Math.random()<0.5? 0 : 1)));
+    if (row.rev)  row.rev.value  = Math.min(1, Math.max(0, (parseFloat(row.rev.value)||0.1)));
+  });
+}
+
+const qaSwitchDrumsBtn = document.getElementById('qaSwitchDrums');
+if (qaSwitchDrumsBtn) qaSwitchDrumsBtn.addEventListener('click', switchDrumTypes);
+const drmSwitchBtn = document.getElementById('drmSwitch');
+if (drmSwitchBtn) drmSwitchBtn.addEventListener('click', switchDrumTypes);
+
+
+// === Auto trigger change melody when last-bar improv is engaged ===
+const autoLastBarCb = document.getElementById('autoLastBarImprov');
+function triggerMelodyChange(){
+  // Prefer the dedicated button if present
+  const btn = document.getElementById('melRnd') || document.getElementById('qaRndMel') || document.getElementById('tRndMel');
+  if (btn) { btn.click(); return; }
+  // Fallback: if there is a function melRnd() in scope, call it
+  try{ if (typeof melRnd === 'function') melRnd(); }catch(e){}
+}
+
+// Small scheduler shim: when measure counter is one bar before change, do a one-bar improv
+// This relies on existing variables: autoOn, autoMeasures, measureCount, etc.
+(function(){
+  const origAdvance = (window.__advanceStep || null);
+  // We'll intercept the section where measureCount increments if we can find the global tick.
+  // If not available, we attach to the main animation frame via nextNoteTime guard.
+  let lastBarScheduled = false;
+  function maybeScheduleLastBar(){
+    if (!autoLastBarCb?.checked) { lastBarScheduled = false; return; }
+    if (!autoOn?.checked) { lastBarScheduled = false; return; }
+    const bars = parseInt(autoMeasures?.value || '2');
+    // If we're one bar before the change boundary, schedule a one-bar improv (mel+bass)
+    if ((measureCount % bars) === (bars - 1)) {
+      if (!lastBarScheduled){
+        // Randomize melody + bass for the next bar
+        triggerMelodyChange();
+        const rb = document.getElementById('bassRnd') || document.getElementById('qaRndBass') || document.getElementById('tRndBass');
+        if (rb) rb.click();
+        lastBarScheduled = true;
+      }
+    } else {
+      lastBarScheduled = false;
+    }
+  }
+
+  // Try to hook into the main scheduler loop by wrapping requestAnimationFrame scheduling of steps.
+  const _raf = window.requestAnimationFrame;
+  window.requestAnimationFrame = function(fn){
+    return _raf.call(window, function(time){
+      try{ maybeScheduleLastBar(); }catch(e){}
+      return fn(time);
+    });
+  };
+})();
+
 })();
 // Auto-change hook for envelope nudge
 if (typeof doAutoChange === 'function'){
@@ -1454,8 +1910,230 @@ if(typeof window.envGain==='function'&&!window.__envGainPatched){window.__origEn
 window.envGain=function(target,t,dur,a=0.004,d=0.06,s=0.35,vel=1){const peak=.9*(vel??1);try{target.cancelScheduledValues(t-.005);target.setValueAtTime(.0001,t-.002);target.linearRampToValueAtTime(peak,t+(a??.004));target.setTargetAtTime(peak*(s??.35),t+(a??.004),(d??.06));const rs=t+Math.max((dur??.15)-.02,0);target.setTargetAtTime(.0001,rs,.015)}catch(e){}try{const owner=target&&target._owner,f=owner&&(owner._filt||owner._filter);if(!f)return;const te=document.getElementById('fType'),ce=document.getElementById('fCut'),qe=document.getElementById('fRes'),ae=document.getElementById('fAmt'),Ae=document.getElementById('fA'),De=document.getElementById('fD'),Se=document.getElementById('fS'),Re=document.getElementById('fR');if(!envOn()){te&&(f.type='allpass');const base=ce?parseFloat(ce.value):1800;f.frequency.cancelScheduledValues(t-.002);f.frequency.setValueAtTime(base,t-.002);return}const typ=te?te.value:'lowpass',base=ce?parseFloat(ce.value):1800,Qv=qe?parseFloat(qe.value):1,amtSt=ae?parseFloat(ae.value):12,fA=Ae?parseFloat(Ae.value):.01,fD=De?parseFloat(De.value):.12,fS=Se?parseFloat(Se.value):.4,fR=Re?parseFloat(Re.value):.12;f.type=typ;f.Q.cancelScheduledValues(t-.002);f.Q.setValueAtTime(Qv,t);const ratio=Math.pow(2,amtSt/12),fpeak=base*ratio,fsus=base*(1+(ratio-1)*fS),rs=t+Math.max((dur??.15)-.02,0),F=f.frequency;F.cancelScheduledValues(t-.005);F.setValueAtTime(base,t-.002);F.linearRampToValueAtTime(fpeak,t+fA);F.setTargetAtTime(fsus,t+fA,Math.max(.005,fD));F.setTargetAtTime(base,rs,Math.max(.01,fR))}catch(e){}}; 
 function clamp(v,a,b){return Math.min(b,Math.max(a,v))}function mutate(el,v){el&&(el.value=v,el.dispatchEvent(new Event('input')))}
 function nudgeEnv(){if(!$('#autoEnvNudge')||!$('#autoEnvNudge').checked)return;const ao=$('#autoOn')||$('#autoChange')||$('#autoOnChk');if(!ao||!ao.checked)return;const p=$('#autoEnvPct'),pct=p?parseFloat(p.value):.15,m=v=>v*(1+(Math.random()*2-1)*pct),fCut=$('#fCut'),fRes=$('#fRes'),fAmt=$('#fAmt'),fA=$('#fA'),fD=$('#fD'),fS=$('#fS'),fR=$('#fR');fCut&&mutate(fCut,clamp(m(parseFloat(fCut.value)),60,12000));fRes&&mutate(fRes,clamp(m(parseFloat(fRes.value)),.2,18));if(fAmt){let v=Math.round(parseFloat(fAmt.value)+(Math.random()*2-1)*Math.max(1,Math.round(24*pct)));mutate(fAmt,clamp(v,-24,24))}fA&&mutate(fA,clamp(m(parseFloat(fA.value)),.001,1.5));fD&&mutate(fD,clamp(m(parseFloat(fD.value)),.005,2));fS&&mutate(fS,clamp(m(parseFloat(fS.value)),0,1));fR&&mutate(fR,clamp(m(parseFloat(fR.value)),.005,2))} 
-(function(){const led=$('#beatLED');if(!led)return;const ms=$('#autoMeasures')||$('#autoBars');let bars=0;new MutationObserver(()=>{bars++;const mod=parseInt(ms?ms.value:'2',10)||2;if(bars%mod===0)nudgeEnv()}).observe(led,{attributes:!0,attributeFilter:['class']})})(); 
-(function(){if($('#nextBass')||$('#switchBassBtn'))return;const a=$('#nextInst')||$$('button').find(b=>/switch instrument/i.test(b.textContent||''));if(!a||!a.parentNode)return;const b=document.createElement('button');b.id='switchBassBtn';b.textContent='🎛️ Switch Bass';b.addEventListener('click',()=>{const s=$('#bassInst');if(!s)return;s.selectedIndex=(s.selectedIndex+1)%s.options.length;s.dispatchEvent(new Event('input'))});a.parentNode.insertBefore(b,a.nextSibling)})(); 
+(function(){const led=$('#beatLED');if(!led)return;const ms=$('#autoMeasures')||$('#autoBars');let bars=0;new MutationObserver(()=>{bars++;const mod=parseInt(ms?ms.value:'2',10)||2;if(bars%mod===0)nudgeEnv()}).observe(led,{attributes:!0,attributeFilter:['class']})
+// === Switch Drum Types (preserve patterns) ===
+function randomChoice(a){ return a[Math.floor(Math.random()*a.length)]; }
+function switchDrumTypes(){
+  const kickTypes = ['acoustic','808','clicky'];
+  const snrTypes  = ['noise','808','clap'];
+  const hatTypes  = ['ch','oh','sh'];
+  const prcTypes  = ['clap','tom','cow'];
+  if (drumCtrl.kick?.type) drumCtrl.kick.type.value = randomChoice(kickTypes);
+  if (drumCtrl.snr?.type)  drumCtrl.snr.type.value  = randomChoice(snrTypes);
+  if (drumCtrl.hat?.type)  drumCtrl.hat.type.value  = randomChoice(hatTypes);
+  if (drumCtrl.prc?.type)  drumCtrl.prc.type.value  = randomChoice(prcTypes);
+
+  // Tasteful random tweaks to character without silencing
+  [drumCtrl.kick, drumCtrl.snr, drumCtrl.hat, drumCtrl.prc].forEach(row => {
+    if (!row) return;
+    if (row.tune) row.tune.value = (Math.random()*24|0)-12;
+    if (row.vol)  row.vol.value  = Math.min(1.2, Math.max(0.55, (parseFloat(row.vol.value)||0.9) * (0.8 + Math.random()*0.4)));
+    if (row.dly)  row.dly.value  = Math.min(1, Math.max(0, (parseFloat(row.dly.value)||0) * (Math.random()<0.5? 0 : 1)));
+    if (row.rev)  row.rev.value  = Math.min(1, Math.max(0, (parseFloat(row.rev.value)||0.1)));
+  });
+}
+
+const qaSwitchDrumsBtn = document.getElementById('qaSwitchDrums');
+if (qaSwitchDrumsBtn) qaSwitchDrumsBtn.addEventListener('click', switchDrumTypes);
+const drmSwitchBtn = document.getElementById('drmSwitch');
+if (drmSwitchBtn) drmSwitchBtn.addEventListener('click', switchDrumTypes);
+
+
+// === Auto trigger change melody when last-bar improv is engaged ===
+const autoLastBarCb = document.getElementById('autoLastBarImprov');
+function triggerMelodyChange(){
+  // Prefer the dedicated button if present
+  const btn = document.getElementById('melRnd') || document.getElementById('qaRndMel') || document.getElementById('tRndMel');
+  if (btn) { btn.click(); return; }
+  // Fallback: if there is a function melRnd() in scope, call it
+  try{ if (typeof melRnd === 'function') melRnd(); }catch(e){}
+}
+
+// Small scheduler shim: when measure counter is one bar before change, do a one-bar improv
+// This relies on existing variables: autoOn, autoMeasures, measureCount, etc.
+(function(){
+  const origAdvance = (window.__advanceStep || null);
+  // We'll intercept the section where measureCount increments if we can find the global tick.
+  // If not available, we attach to the main animation frame via nextNoteTime guard.
+  let lastBarScheduled = false;
+  function maybeScheduleLastBar(){
+    if (!autoLastBarCb?.checked) { lastBarScheduled = false; return; }
+    if (!autoOn?.checked) { lastBarScheduled = false; return; }
+    const bars = parseInt(autoMeasures?.value || '2');
+    // If we're one bar before the change boundary, schedule a one-bar improv (mel+bass)
+    if ((measureCount % bars) === (bars - 1)) {
+      if (!lastBarScheduled){
+        // Randomize melody + bass for the next bar
+        triggerMelodyChange();
+        const rb = document.getElementById('bassRnd') || document.getElementById('qaRndBass') || document.getElementById('tRndBass');
+        if (rb) rb.click();
+        lastBarScheduled = true;
+      }
+    } else {
+      lastBarScheduled = false;
+    }
+  }
+
+  // Try to hook into the main scheduler loop by wrapping requestAnimationFrame scheduling of steps.
+  const _raf = window.requestAnimationFrame;
+  window.requestAnimationFrame = function(fn){
+    return _raf.call(window, function(time){
+      try{ maybeScheduleLastBar(); }catch(e){}
+      return fn(time);
+    });
+  };
+})();
+
+})(); 
+(function(){if($('#nextBass')||$('#switchBassBtn'))return;const a=$('#nextInst')||$$('button').find(b=>/switch instrument/i.test(b.textContent||''));if(!a||!a.parentNode)return;const b=document.createElement('button');b.id='switchBassBtn';b.textContent='🎛️ Switch Bass';b.addEventListener('click',()=>{const s=$('#bassInst');if(!s)return;s.selectedIndex=(s.selectedIndex+1)%s.options.length;s.dispatchEvent(new Event('input'))});a.parentNode.insertBefore(b,a.nextSibling)
+// === Switch Drum Types (preserve patterns) ===
+function randomChoice(a){ return a[Math.floor(Math.random()*a.length)]; }
+function switchDrumTypes(){
+  const kickTypes = ['acoustic','808','clicky'];
+  const snrTypes  = ['noise','808','clap'];
+  const hatTypes  = ['ch','oh','sh'];
+  const prcTypes  = ['clap','tom','cow'];
+  if (drumCtrl.kick?.type) drumCtrl.kick.type.value = randomChoice(kickTypes);
+  if (drumCtrl.snr?.type)  drumCtrl.snr.type.value  = randomChoice(snrTypes);
+  if (drumCtrl.hat?.type)  drumCtrl.hat.type.value  = randomChoice(hatTypes);
+  if (drumCtrl.prc?.type)  drumCtrl.prc.type.value  = randomChoice(prcTypes);
+
+  // Tasteful random tweaks to character without silencing
+  [drumCtrl.kick, drumCtrl.snr, drumCtrl.hat, drumCtrl.prc].forEach(row => {
+    if (!row) return;
+    if (row.tune) row.tune.value = (Math.random()*24|0)-12;
+    if (row.vol)  row.vol.value  = Math.min(1.2, Math.max(0.55, (parseFloat(row.vol.value)||0.9) * (0.8 + Math.random()*0.4)));
+    if (row.dly)  row.dly.value  = Math.min(1, Math.max(0, (parseFloat(row.dly.value)||0) * (Math.random()<0.5? 0 : 1)));
+    if (row.rev)  row.rev.value  = Math.min(1, Math.max(0, (parseFloat(row.rev.value)||0.1)));
+  });
+}
+
+const qaSwitchDrumsBtn = document.getElementById('qaSwitchDrums');
+if (qaSwitchDrumsBtn) qaSwitchDrumsBtn.addEventListener('click', switchDrumTypes);
+const drmSwitchBtn = document.getElementById('drmSwitch');
+if (drmSwitchBtn) drmSwitchBtn.addEventListener('click', switchDrumTypes);
+
+
+// === Auto trigger change melody when last-bar improv is engaged ===
+const autoLastBarCb = document.getElementById('autoLastBarImprov');
+function triggerMelodyChange(){
+  // Prefer the dedicated button if present
+  const btn = document.getElementById('melRnd') || document.getElementById('qaRndMel') || document.getElementById('tRndMel');
+  if (btn) { btn.click(); return; }
+  // Fallback: if there is a function melRnd() in scope, call it
+  try{ if (typeof melRnd === 'function') melRnd(); }catch(e){}
+}
+
+// Small scheduler shim: when measure counter is one bar before change, do a one-bar improv
+// This relies on existing variables: autoOn, autoMeasures, measureCount, etc.
+(function(){
+  const origAdvance = (window.__advanceStep || null);
+  // We'll intercept the section where measureCount increments if we can find the global tick.
+  // If not available, we attach to the main animation frame via nextNoteTime guard.
+  let lastBarScheduled = false;
+  function maybeScheduleLastBar(){
+    if (!autoLastBarCb?.checked) { lastBarScheduled = false; return; }
+    if (!autoOn?.checked) { lastBarScheduled = false; return; }
+    const bars = parseInt(autoMeasures?.value || '2');
+    // If we're one bar before the change boundary, schedule a one-bar improv (mel+bass)
+    if ((measureCount % bars) === (bars - 1)) {
+      if (!lastBarScheduled){
+        // Randomize melody + bass for the next bar
+        triggerMelodyChange();
+        const rb = document.getElementById('bassRnd') || document.getElementById('qaRndBass') || document.getElementById('tRndBass');
+        if (rb) rb.click();
+        lastBarScheduled = true;
+      }
+    } else {
+      lastBarScheduled = false;
+    }
+  }
+
+  // Try to hook into the main scheduler loop by wrapping requestAnimationFrame scheduling of steps.
+  const _raf = window.requestAnimationFrame;
+  window.requestAnimationFrame = function(fn){
+    return _raf.call(window, function(time){
+      try{ maybeScheduleLastBar(); }catch(e){}
+      return fn(time);
+    });
+  };
+})();
+
+})(); 
+
+// === Switch Drum Types (preserve patterns) ===
+function randomChoice(a){ return a[Math.floor(Math.random()*a.length)]; }
+function switchDrumTypes(){
+  const kickTypes = ['acoustic','808','clicky'];
+  const snrTypes  = ['noise','808','clap'];
+  const hatTypes  = ['ch','oh','sh'];
+  const prcTypes  = ['clap','tom','cow'];
+  if (drumCtrl.kick?.type) drumCtrl.kick.type.value = randomChoice(kickTypes);
+  if (drumCtrl.snr?.type)  drumCtrl.snr.type.value  = randomChoice(snrTypes);
+  if (drumCtrl.hat?.type)  drumCtrl.hat.type.value  = randomChoice(hatTypes);
+  if (drumCtrl.prc?.type)  drumCtrl.prc.type.value  = randomChoice(prcTypes);
+
+  // Tasteful random tweaks to character without silencing
+  [drumCtrl.kick, drumCtrl.snr, drumCtrl.hat, drumCtrl.prc].forEach(row => {
+    if (!row) return;
+    if (row.tune) row.tune.value = (Math.random()*24|0)-12;
+    if (row.vol)  row.vol.value  = Math.min(1.2, Math.max(0.55, (parseFloat(row.vol.value)||0.9) * (0.8 + Math.random()*0.4)));
+    if (row.dly)  row.dly.value  = Math.min(1, Math.max(0, (parseFloat(row.dly.value)||0) * (Math.random()<0.5? 0 : 1)));
+    if (row.rev)  row.rev.value  = Math.min(1, Math.max(0, (parseFloat(row.rev.value)||0.1)));
+  });
+}
+
+const qaSwitchDrumsBtn = document.getElementById('qaSwitchDrums');
+if (qaSwitchDrumsBtn) qaSwitchDrumsBtn.addEventListener('click', switchDrumTypes);
+const drmSwitchBtn = document.getElementById('drmSwitch');
+if (drmSwitchBtn) drmSwitchBtn.addEventListener('click', switchDrumTypes);
+
+
+// === Auto trigger change melody when last-bar improv is engaged ===
+const autoLastBarCb = document.getElementById('autoLastBarImprov');
+function triggerMelodyChange(){
+  // Prefer the dedicated button if present
+  const btn = document.getElementById('melRnd') || document.getElementById('qaRndMel') || document.getElementById('tRndMel');
+  if (btn) { btn.click(); return; }
+  // Fallback: if there is a function melRnd() in scope, call it
+  try{ if (typeof melRnd === 'function') melRnd(); }catch(e){}
+}
+
+// Small scheduler shim: when measure counter is one bar before change, do a one-bar improv
+// This relies on existing variables: autoOn, autoMeasures, measureCount, etc.
+(function(){
+  const origAdvance = (window.__advanceStep || null);
+  // We'll intercept the section where measureCount increments if we can find the global tick.
+  // If not available, we attach to the main animation frame via nextNoteTime guard.
+  let lastBarScheduled = false;
+  function maybeScheduleLastBar(){
+    if (!autoLastBarCb?.checked) { lastBarScheduled = false; return; }
+    if (!autoOn?.checked) { lastBarScheduled = false; return; }
+    const bars = parseInt(autoMeasures?.value || '2');
+    // If we're one bar before the change boundary, schedule a one-bar improv (mel+bass)
+    if ((measureCount % bars) === (bars - 1)) {
+      if (!lastBarScheduled){
+        // Randomize melody + bass for the next bar
+        triggerMelodyChange();
+        const rb = document.getElementById('bassRnd') || document.getElementById('qaRndBass') || document.getElementById('tRndBass');
+        if (rb) rb.click();
+        lastBarScheduled = true;
+      }
+    } else {
+      lastBarScheduled = false;
+    }
+  }
+
+  // Try to hook into the main scheduler loop by wrapping requestAnimationFrame scheduling of steps.
+  const _raf = window.requestAnimationFrame;
+  window.requestAnimationFrame = function(fn){
+    return _raf.call(window, function(time){
+      try{ maybeScheduleLastBar(); }catch(e){}
+      return fn(time);
+    });
+  };
+})();
+
 })();</script>
 <!-- END MERGE PATCH -->
 <!-- END MERGE PATCH -->
@@ -1542,9 +2220,229 @@ function nudgeEnv(){if(!$('#autoEnvNudge')||!$('#autoEnvNudge').checked)return;c
     window.__leadBPatched = true;
     console.log('[LeadB Patch] Second lead mirroring enabled.');
   }
+
+// === Switch Drum Types (preserve patterns) ===
+function randomChoice(a){ return a[Math.floor(Math.random()*a.length)]; }
+function switchDrumTypes(){
+  const kickTypes = ['acoustic','808','clicky'];
+  const snrTypes  = ['noise','808','clap'];
+  const hatTypes  = ['ch','oh','sh'];
+  const prcTypes  = ['clap','tom','cow'];
+  if (drumCtrl.kick?.type) drumCtrl.kick.type.value = randomChoice(kickTypes);
+  if (drumCtrl.snr?.type)  drumCtrl.snr.type.value  = randomChoice(snrTypes);
+  if (drumCtrl.hat?.type)  drumCtrl.hat.type.value  = randomChoice(hatTypes);
+  if (drumCtrl.prc?.type)  drumCtrl.prc.type.value  = randomChoice(prcTypes);
+
+  // Tasteful random tweaks to character without silencing
+  [drumCtrl.kick, drumCtrl.snr, drumCtrl.hat, drumCtrl.prc].forEach(row => {
+    if (!row) return;
+    if (row.tune) row.tune.value = (Math.random()*24|0)-12;
+    if (row.vol)  row.vol.value  = Math.min(1.2, Math.max(0.55, (parseFloat(row.vol.value)||0.9) * (0.8 + Math.random()*0.4)));
+    if (row.dly)  row.dly.value  = Math.min(1, Math.max(0, (parseFloat(row.dly.value)||0) * (Math.random()<0.5? 0 : 1)));
+    if (row.rev)  row.rev.value  = Math.min(1, Math.max(0, (parseFloat(row.rev.value)||0.1)));
+  });
+}
+
+const qaSwitchDrumsBtn = document.getElementById('qaSwitchDrums');
+if (qaSwitchDrumsBtn) qaSwitchDrumsBtn.addEventListener('click', switchDrumTypes);
+const drmSwitchBtn = document.getElementById('drmSwitch');
+if (drmSwitchBtn) drmSwitchBtn.addEventListener('click', switchDrumTypes);
+
+
+// === Auto trigger change melody when last-bar improv is engaged ===
+const autoLastBarCb = document.getElementById('autoLastBarImprov');
+function triggerMelodyChange(){
+  // Prefer the dedicated button if present
+  const btn = document.getElementById('melRnd') || document.getElementById('qaRndMel') || document.getElementById('tRndMel');
+  if (btn) { btn.click(); return; }
+  // Fallback: if there is a function melRnd() in scope, call it
+  try{ if (typeof melRnd === 'function') melRnd(); }catch(e){}
+}
+
+// Small scheduler shim: when measure counter is one bar before change, do a one-bar improv
+// This relies on existing variables: autoOn, autoMeasures, measureCount, etc.
+(function(){
+  const origAdvance = (window.__advanceStep || null);
+  // We'll intercept the section where measureCount increments if we can find the global tick.
+  // If not available, we attach to the main animation frame via nextNoteTime guard.
+  let lastBarScheduled = false;
+  function maybeScheduleLastBar(){
+    if (!autoLastBarCb?.checked) { lastBarScheduled = false; return; }
+    if (!autoOn?.checked) { lastBarScheduled = false; return; }
+    const bars = parseInt(autoMeasures?.value || '2');
+    // If we're one bar before the change boundary, schedule a one-bar improv (mel+bass)
+    if ((measureCount % bars) === (bars - 1)) {
+      if (!lastBarScheduled){
+        // Randomize melody + bass for the next bar
+        triggerMelodyChange();
+        const rb = document.getElementById('bassRnd') || document.getElementById('qaRndBass') || document.getElementById('tRndBass');
+        if (rb) rb.click();
+        lastBarScheduled = true;
+      }
+    } else {
+      lastBarScheduled = false;
+    }
+  }
+
+  // Try to hook into the main scheduler loop by wrapping requestAnimationFrame scheduling of steps.
+  const _raf = window.requestAnimationFrame;
+  window.requestAnimationFrame = function(fn){
+    return _raf.call(window, function(time){
+      try{ maybeScheduleLastBar(); }catch(e){}
+      return fn(time);
+    });
+  };
+})();
+
 })();
 </script>
 <!-- END PATCH -->
+
+
+<!-- PATCH: Robust Envelope Enable/Disable -->
+<script>
+(function(){
+  const $ = (id) => document.getElementById(id);
+  function envOn(){
+    const el = $('envEnable') || $('fEnvOn');
+    return el ? !!el.checked : true;
+  }
+  if (!window.__ENV_ENABLE_PATCHED__) {
+    const origEnvGain = window.envGain;
+    // Override envGain to respect envOn()
+    window.envGain = function(target, t, dur, a=0.004, d=0.06, s=0.35, vel=1){
+      if (!envOn()) {
+        // Bypass envelopes: hold a steady level for the note duration
+        const level = 0.9 * (vel ?? 1);
+        try {
+          target.cancelScheduledValues(t - 0.005);
+          target.setValueAtTime(level, t - 0.002);
+          target.setValueAtTime(level, t + Math.max(dur, 0.001));
+        } catch(e) {}
+        return;
+      }
+      if (typeof origEnvGain === 'function') {
+        return origEnvGain(target, t, dur, a, d, s, vel);
+      }
+      // Fallback amplitude env if original is missing
+      try {
+        const peak = 0.9 * (vel ?? 1);
+        target.cancelScheduledValues(t - 0.005);
+        target.setValueAtTime(0.0001, t - 0.002);
+        target.linearRampToValueAtTime(peak, t + a);
+        target.setTargetAtTime(peak * s, t + a, d);
+        const relStart = t + Math.max(dur - 0.02, 0);
+        target.setTargetAtTime(0.0001, relStart, 0.015);
+      } catch(e) {}
+    };
+
+    // Nudge voiceOut filter type to 'allpass' when envelopes are off
+    if (typeof window.voiceOut === 'function') {
+      const origVoiceOut = window.voiceOut;
+      window.voiceOut = function(){
+        const g = origVoiceOut.apply(this, arguments);
+        try {
+          const filt = g && (g._filt || g._filter);
+          if (filt) {
+            const typEl = $('fType');
+            const want = envOn() ? (typEl ? typEl.value : 'lowpass') : 'allpass';
+            filt.type = want;
+          }
+        } catch(e) {}
+        return g;
+      };
+    }
+
+    // Update on UI toggle
+    const toggle = $('envEnable') || $('fEnvOn');
+    if (toggle) {
+      toggle.addEventListener('change', () => {
+        // No need to touch active voices; new ones will respect the state
+        // Optionally update status display if present
+        if (window.autoStatus) {
+          autoStatus.textContent = envOn() ? 'Envelope: ON' : 'Envelope: OFF';
+        }
+      });
+    }
+
+    window.__ENV_ENABLE_PATCHED__ = true;
+  }
+
+// === Switch Drum Types (preserve patterns) ===
+function randomChoice(a){ return a[Math.floor(Math.random()*a.length)]; }
+function switchDrumTypes(){
+  const kickTypes = ['acoustic','808','clicky'];
+  const snrTypes  = ['noise','808','clap'];
+  const hatTypes  = ['ch','oh','sh'];
+  const prcTypes  = ['clap','tom','cow'];
+  if (drumCtrl.kick?.type) drumCtrl.kick.type.value = randomChoice(kickTypes);
+  if (drumCtrl.snr?.type)  drumCtrl.snr.type.value  = randomChoice(snrTypes);
+  if (drumCtrl.hat?.type)  drumCtrl.hat.type.value  = randomChoice(hatTypes);
+  if (drumCtrl.prc?.type)  drumCtrl.prc.type.value  = randomChoice(prcTypes);
+
+  // Tasteful random tweaks to character without silencing
+  [drumCtrl.kick, drumCtrl.snr, drumCtrl.hat, drumCtrl.prc].forEach(row => {
+    if (!row) return;
+    if (row.tune) row.tune.value = (Math.random()*24|0)-12;
+    if (row.vol)  row.vol.value  = Math.min(1.2, Math.max(0.55, (parseFloat(row.vol.value)||0.9) * (0.8 + Math.random()*0.4)));
+    if (row.dly)  row.dly.value  = Math.min(1, Math.max(0, (parseFloat(row.dly.value)||0) * (Math.random()<0.5? 0 : 1)));
+    if (row.rev)  row.rev.value  = Math.min(1, Math.max(0, (parseFloat(row.rev.value)||0.1)));
+  });
+}
+
+const qaSwitchDrumsBtn = document.getElementById('qaSwitchDrums');
+if (qaSwitchDrumsBtn) qaSwitchDrumsBtn.addEventListener('click', switchDrumTypes);
+const drmSwitchBtn = document.getElementById('drmSwitch');
+if (drmSwitchBtn) drmSwitchBtn.addEventListener('click', switchDrumTypes);
+
+
+// === Auto trigger change melody when last-bar improv is engaged ===
+const autoLastBarCb = document.getElementById('autoLastBarImprov');
+function triggerMelodyChange(){
+  // Prefer the dedicated button if present
+  const btn = document.getElementById('melRnd') || document.getElementById('qaRndMel') || document.getElementById('tRndMel');
+  if (btn) { btn.click(); return; }
+  // Fallback: if there is a function melRnd() in scope, call it
+  try{ if (typeof melRnd === 'function') melRnd(); }catch(e){}
+}
+
+// Small scheduler shim: when measure counter is one bar before change, do a one-bar improv
+// This relies on existing variables: autoOn, autoMeasures, measureCount, etc.
+(function(){
+  const origAdvance = (window.__advanceStep || null);
+  // We'll intercept the section where measureCount increments if we can find the global tick.
+  // If not available, we attach to the main animation frame via nextNoteTime guard.
+  let lastBarScheduled = false;
+  function maybeScheduleLastBar(){
+    if (!autoLastBarCb?.checked) { lastBarScheduled = false; return; }
+    if (!autoOn?.checked) { lastBarScheduled = false; return; }
+    const bars = parseInt(autoMeasures?.value || '2');
+    // If we're one bar before the change boundary, schedule a one-bar improv (mel+bass)
+    if ((measureCount % bars) === (bars - 1)) {
+      if (!lastBarScheduled){
+        // Randomize melody + bass for the next bar
+        triggerMelodyChange();
+        const rb = document.getElementById('bassRnd') || document.getElementById('qaRndBass') || document.getElementById('tRndBass');
+        if (rb) rb.click();
+        lastBarScheduled = true;
+      }
+    } else {
+      lastBarScheduled = false;
+    }
+  }
+
+  // Try to hook into the main scheduler loop by wrapping requestAnimationFrame scheduling of steps.
+  const _raf = window.requestAnimationFrame;
+  window.requestAnimationFrame = function(fn){
+    return _raf.call(window, function(time){
+      try{ maybeScheduleLastBar(); }catch(e){}
+      return fn(time);
+    });
+  };
+})();
+
+})();
+</script>
 
 </body>
 </html>
